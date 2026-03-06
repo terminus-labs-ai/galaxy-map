@@ -133,6 +133,89 @@ if tasks:
     httpx.patch(f"{BOARD}/tasks/{task['id']}", json={"status": "needs_review"})
 ```
 
+## MCP Server
+
+The MCP server wraps the REST API as MCP tools, so any MCP-compatible client (Claude Code, Claude Desktop, Cursor, etc.) can manage tasks directly.
+
+### Available Tools
+
+| Tool | Description |
+| ---- | ----------- |
+| `list_tasks` | List tasks (optional `status` and `specialization` filters) |
+| `create_task` | Create a new task |
+| `get_task` | Get a single task by ID |
+| `update_task` | Partial update of a task |
+| `delete_task` | Delete a task |
+| `list_statuses` | List valid statuses |
+| `list_specializations` | List valid specializations |
+
+### Local (stdio)
+
+Requires the Galaxy Map backend running on `localhost:8000`.
+
+```bash
+cd mcp-server
+pip install .
+galaxy-map-mcp
+```
+
+To point at a different backend:
+
+```bash
+GALAXY_MAP_URL=http://some-host:8000 galaxy-map-mcp
+```
+
+### Docker (SSE)
+
+Runs alongside the backend and frontend via docker-compose. The MCP server is exposed on port `8080` with SSE transport.
+
+```bash
+docker compose up galaxy-map-mcp
+```
+
+### Client Configuration
+
+#### Claude Code
+
+Add to `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "galaxy-map": {
+      "command": "galaxy-map-mcp",
+      "env": {
+        "GALAXY_MAP_URL": "http://localhost:8000"
+      }
+    }
+  }
+}
+```
+
+#### Claude Desktop
+
+Add to your Claude Desktop config (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "galaxy-map": {
+      "command": "galaxy-map-mcp",
+      "env": {
+        "GALAXY_MAP_URL": "http://localhost:8000"
+      }
+    }
+  }
+}
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `GALAXY_MAP_URL` | `http://localhost:8000` | Base URL of the Galaxy Map API |
+| `MCP_TRANSPORT` | `stdio` | Transport mode (`stdio`, `sse`, or `streamable-http`) |
+
 ## Roadmap
 
 - [ ] Clipboard sharer tab

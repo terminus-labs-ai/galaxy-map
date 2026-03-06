@@ -8,14 +8,27 @@ Configure via environment variable:
     GALAXY_MAP_URL  — base URL of the Galaxy Map API (default: http://localhost:8000)
 """
 
+import logging
 import os
+import sys
 from typing import Optional
 
 import httpx
 from mcp.server.fastmcp import FastMCP
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stderr,
+)
+logger = logging.getLogger("galaxy-map-mcp")
+
 BASE_URL = os.environ.get("GALAXY_MAP_URL", "http://localhost:8000")
 TRANSPORT = os.environ.get("MCP_TRANSPORT", "stdio")
+
+logger.info("Starting Galaxy Map MCP server")
+logger.info("GALAXY_MAP_URL=%s", BASE_URL)
+logger.info("MCP_TRANSPORT=%s", TRANSPORT)
 
 mcp = FastMCP("Galaxy Map", instructions="Task tracker for AI agents. Use these tools to manage tasks on the Galaxy Map kanban board.")
 
@@ -37,10 +50,17 @@ async def list_tasks(status: Optional[str] = None, specialization: Optional[str]
         params["status"] = status
     if specialization:
         params["specialization"] = specialization
+    url = _api("/tasks")
+    logger.debug("list_tasks -> GET %s params=%s", url, params)
     async with httpx.AsyncClient() as client:
-        resp = await client.get(_api("/tasks"), params=params)
-        resp.raise_for_status()
-        return resp.json()
+        try:
+            resp = await client.get(url, params=params)
+            logger.debug("list_tasks <- %s (%d bytes)", resp.status_code, len(resp.content))
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as e:
+            logger.error("list_tasks failed: %s", e)
+            raise
 
 
 @mcp.tool()
@@ -73,10 +93,17 @@ async def create_task(
         "blocked_by": blocked_by or [],
         "metadata": metadata or {},
     }
+    url = _api("/tasks")
+    logger.debug("create_task -> POST %s body=%s", url, body)
     async with httpx.AsyncClient() as client:
-        resp = await client.post(_api("/tasks"), json=body)
-        resp.raise_for_status()
-        return resp.json()
+        try:
+            resp = await client.post(url, json=body)
+            logger.debug("create_task <- %s (%d bytes)", resp.status_code, len(resp.content))
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as e:
+            logger.error("create_task failed: %s", e)
+            raise
 
 
 @mcp.tool()
@@ -86,10 +113,17 @@ async def get_task(task_id: str) -> dict:
     Args:
         task_id: The task ID.
     """
+    url = _api(f"/tasks/{task_id}")
+    logger.debug("get_task -> GET %s", url)
     async with httpx.AsyncClient() as client:
-        resp = await client.get(_api(f"/tasks/{task_id}"))
-        resp.raise_for_status()
-        return resp.json()
+        try:
+            resp = await client.get(url)
+            logger.debug("get_task <- %s (%d bytes)", resp.status_code, len(resp.content))
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as e:
+            logger.error("get_task failed: %s", e)
+            raise
 
 
 @mcp.tool()
@@ -130,10 +164,17 @@ async def update_task(
         body["blocked_by"] = blocked_by
     if metadata is not None:
         body["metadata"] = metadata
+    url = _api(f"/tasks/{task_id}")
+    logger.debug("update_task -> PATCH %s body=%s", url, body)
     async with httpx.AsyncClient() as client:
-        resp = await client.patch(_api(f"/tasks/{task_id}"), json=body)
-        resp.raise_for_status()
-        return resp.json()
+        try:
+            resp = await client.patch(url, json=body)
+            logger.debug("update_task <- %s (%d bytes)", resp.status_code, len(resp.content))
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as e:
+            logger.error("update_task failed: %s", e)
+            raise
 
 
 @mcp.tool()
@@ -143,31 +184,53 @@ async def delete_task(task_id: str) -> str:
     Args:
         task_id: The task ID to delete.
     """
+    url = _api(f"/tasks/{task_id}")
+    logger.debug("delete_task -> DELETE %s", url)
     async with httpx.AsyncClient() as client:
-        resp = await client.delete(_api(f"/tasks/{task_id}"))
-        resp.raise_for_status()
-        return f"Task {task_id} deleted."
+        try:
+            resp = await client.delete(url)
+            logger.debug("delete_task <- %s", resp.status_code)
+            resp.raise_for_status()
+            return f"Task {task_id} deleted."
+        except httpx.HTTPError as e:
+            logger.error("delete_task failed: %s", e)
+            raise
 
 
 @mcp.tool()
 async def list_statuses() -> list[str]:
     """List valid task statuses (board columns), in order."""
+    url = _api("/statuses")
+    logger.debug("list_statuses -> GET %s", url)
     async with httpx.AsyncClient() as client:
-        resp = await client.get(_api("/statuses"))
-        resp.raise_for_status()
-        return resp.json()
+        try:
+            resp = await client.get(url)
+            logger.debug("list_statuses <- %s", resp.status_code)
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as e:
+            logger.error("list_statuses failed: %s", e)
+            raise
 
 
 @mcp.tool()
 async def list_specializations() -> list[str]:
     """List valid task specializations."""
+    url = _api("/specializations")
+    logger.debug("list_specializations -> GET %s", url)
     async with httpx.AsyncClient() as client:
-        resp = await client.get(_api("/specializations"))
-        resp.raise_for_status()
-        return resp.json()
+        try:
+            resp = await client.get(url)
+            logger.debug("list_specializations <- %s", resp.status_code)
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as e:
+            logger.error("list_specializations failed: %s", e)
+            raise
 
 
 def main():
+    logger.info("Running with transport=%s", TRANSPORT)
     mcp.run(transport=TRANSPORT)
 
 
