@@ -25,12 +25,14 @@ logger = logging.getLogger("galaxy-map-mcp")
 
 BASE_URL = os.environ.get("GALAXY_MAP_URL", "http://localhost:8000")
 TRANSPORT = os.environ.get("MCP_TRANSPORT", "stdio")
+MCP_HOST = os.environ.get("MCP_HOST", "0.0.0.0")
+MCP_PORT = int(os.environ.get("MCP_PORT", "8080"))
 
 logger.info("Starting Galaxy Map MCP server")
 logger.info("GALAXY_MAP_URL=%s", BASE_URL)
 logger.info("MCP_TRANSPORT=%s", TRANSPORT)
 
-mcp = FastMCP("Galaxy Map", instructions="Task tracker for AI agents. Use these tools to manage tasks on the Galaxy Map kanban board.")
+mcp = FastMCP("Galaxy Map", instructions="Task tracker for AI agents. Use these tools to manage tasks on the Galaxy Map kanban board.", host=MCP_HOST, port=MCP_PORT)
 
 
 def _api(path: str) -> str:

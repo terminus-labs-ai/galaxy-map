@@ -3,6 +3,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: galaxy-map-backend
     ports:
       - "8000:8000"
     volumes:
@@ -16,6 +17,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    container_name: galaxy-map-frontend
     ports:
       - "5173:80"
     depends_on:
@@ -27,15 +29,17 @@ services:
     build:
       context: ./mcp-server
       dockerfile: Dockerfile
+    container_name: galaxy-map-mcp
     ports:
-      - "8080:8080"
+      - "10001:8080"
     environment:
       - GALAXY_MAP_URL=http://backend:8000
-      - MCP_TRANSPORT=sse
+      - MCP_TRANSPORT=streamable-http
     depends_on:
       - backend
     networks:
       - galaxy-map
+      - sr2
 
 volumes:
   db-data:
@@ -43,3 +47,6 @@ volumes:
 networks:
   galaxy-map:
     external: false
+  sr2:          
+    external: true                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+    name: local-sr2_sr2

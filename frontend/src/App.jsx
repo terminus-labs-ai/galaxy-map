@@ -300,7 +300,7 @@ export default function App() {
     <div className="app">
       <header className="header">
         <div className="header-left">
-          <h1 className="logo">terminus board</h1>
+          <h1 className="logo">Galaxy Map</h1>
           <span className="version">v0.2.0</span>
         </div>
         <AddTaskForm onAdd={addTask} />
