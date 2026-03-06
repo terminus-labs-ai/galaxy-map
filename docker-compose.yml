@@ -1,0 +1,45 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - db-data:/app/data
+    environment:
+      - DATABASE_PATH=/app/data/board.db
+    networks:
+      - galaxy-map
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - galaxy-map
+
+  galaxy-map-mcp:
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - GALAXY_MAP_URL=http://backend:8000
+      - MCP_TRANSPORT=sse
+    depends_on:
+      - backend
+    networks:
+      - galaxy-map
+
+volumes:
+  db-data:
+
+networks:
+  galaxy-map:
+    external: false
