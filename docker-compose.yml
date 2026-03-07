@@ -49,4 +49,4 @@ networks:
     external: false
   sr2:          
     external: true                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
-    name: local-sr2_sr2
+    name: normandy-master_sr2
