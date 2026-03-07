@@ -7,7 +7,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - db-data:/app/data
+      - /data/galaxy-map/data:/app/data
     environment:
       - DATABASE_PATH=/app/data/board.db
     networks:
