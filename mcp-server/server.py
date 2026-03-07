@@ -74,6 +74,7 @@ async def create_task(
     priority: int = 0,
     blocked_by: Optional[list[str]] = None,
     metadata: Optional[dict] = None,
+    id: Optional[str] = None,
 ) -> dict:
     """Create a new task.
 
@@ -85,6 +86,7 @@ async def create_task(
         priority: Priority (higher = more important). Default 0.
         blocked_by: List of task IDs this task depends on.
         metadata: Arbitrary JSON metadata for agent context.
+        id: Optional client-provided task ID. If omitted, the server generates one. Rejects duplicates (409).
     """
     body = {
         "title": title,
@@ -95,6 +97,8 @@ async def create_task(
         "blocked_by": blocked_by or [],
         "metadata": metadata or {},
     }
+    if id is not None:
+        body["id"] = id
     url = _api("/tasks")
     logger.debug("create_task -> POST %s body=%s", url, body)
     async with httpx.AsyncClient() as client:

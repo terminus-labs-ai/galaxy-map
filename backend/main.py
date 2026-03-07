@@ -91,6 +91,7 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 class TaskCreate(BaseModel):
+    id: Optional[str] = None
     title: str
     description: str = ""
     status: str = "backlog"
@@ -131,7 +132,7 @@ def row_to_task(row, all_tasks: list[dict] | None = None) -> dict:
     if all_tasks is not None:
         blocker_statuses = {t["id"]: t["status"] for t in all_tasks}
         d["is_blocked"] = any(
-            blocker_statuses.get(bid, "backlog") != "done"
+            blocker_statuses.get(bid, "done") != "done"
             for bid in d["blocked_by"]
         )
     else:
@@ -158,15 +159,12 @@ def validate_specialization(spec: str):
         raise HTTPException(400, f"Invalid specialization. Must be one of: {SPECIALIZATIONS}")
 
 
-async def validate_blocked_by(db, blocked_by: list[str], exclude_id: str = ""):
+def validate_blocked_by(blocked_by: list[str], exclude_id: str = ""):
     if not blocked_by:
         return
     for bid in blocked_by:
         if bid == exclude_id:
             raise HTTPException(400, "A task cannot block itself")
-        cursor = await db.execute("SELECT id FROM tasks WHERE id = ?", (bid,))
-        if not await cursor.fetchone():
-            raise HTTPException(400, f"Blocker task not found: {bid}")
 
 
 # ---------------------------------------------------------------------------
@@ -210,10 +208,17 @@ async def create_task(task: TaskCreate):
     validate_specialization(task.specialization)
 
     now = datetime.now(timezone.utc).isoformat()
-    task_id = uuid.uuid4().hex[:12]
+    task_id = task.id if task.id is not None else uuid.uuid4().hex[:12]
+
+    validate_blocked_by(task.blocked_by, task_id)
 
     db = await get_db()
-    await validate_blocked_by(db, task.blocked_by, task_id)
+
+    if task.id is not None:
+        cursor = await db.execute("SELECT id FROM tasks WHERE id = ?", (task_id,))
+        if await cursor.fetchone():
+            await db.close()
+            raise HTTPException(409, f"Task with id '{task_id}' already exists")
 
     await db.execute(
         """INSERT INTO tasks (id, title, description, status, specialization, priority, blocked_by, metadata, created_at, updated_at)
@@ -278,7 +283,7 @@ async def update_task(task_id: str, updates: TaskUpdate):
     validate_status(new_status)
     validate_specialization(new_spec)
     if updates.blocked_by is not None:
-        await validate_blocked_by(db, updates.blocked_by, task_id)
+        validate_blocked_by(updates.blocked_by, task_id)
 
     await db.execute(
         """UPDATE tasks
