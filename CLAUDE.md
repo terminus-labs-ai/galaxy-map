@@ -53,5 +53,6 @@ docker compose up galaxy-map-mcp
 ## Dev Notes
 
 - Backend has no tests yet
-- Frontend is a single-component app (`App.jsx`)
+- Frontend is a single-file app (`App.jsx`) with multiple components: `App`, `TaskDetailModal`, `BlockerEditor`, `TaskCard`, `Column`, `AddTaskForm`
+- Task detail modal opens on card click — supports inline editing of title, description, specialization, priority, and blockers
 - SQLite DB is a single file — no migrations system
