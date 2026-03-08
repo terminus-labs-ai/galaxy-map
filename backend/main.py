@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 DB_PATH = Path(os.environ.get("DATABASE_PATH", Path(__file__).parent / "board.db"))
 
-STATUSES = ["backlog", "queued", "in_progress", "needs_review", "done"]
+STATUSES = ["backlog", "queued", "in_progress", "needs_review", "done", "error"]
 SPECIALIZATIONS = ["general", "coding", "planning", "research"]
 
 
@@ -291,6 +291,91 @@ async def update_task(task_id: str, updates: TaskUpdate):
                priority = ?, blocked_by = ?, metadata = ?, updated_at = ?
            WHERE id = ?""",
         (new_title, new_desc, new_status, new_spec, new_priority, new_blocked, new_metadata, now, task_id),
+    )
+    await db.commit()
+
+    cursor = await db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
+    row = await cursor.fetchone()
+    all_raw = await fetch_all_tasks_raw(db)
+    await db.close()
+    return row_to_task(row, all_raw)
+
+
+@app.post("/api/tasks/{task_id}/claim", response_model=TaskResponse)
+async def claim_task(task_id: str, claimed_by: str = Query(...)):
+    """Atomically claim a queued, unblocked task.
+
+    Sets status to in_progress and stores claimed_by in metadata.
+    Returns 409 if the task is not queued, is blocked, or already claimed.
+    """
+    db = await get_db()
+    cursor = await db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
+    row = await cursor.fetchone()
+    if not row:
+        await db.close()
+        raise HTTPException(404, "Task not found")
+
+    current = dict(row)
+    if current["status"] != "queued":
+        await db.close()
+        raise HTTPException(409, f"Task is '{current['status']}', not 'queued'")
+
+    # Check if blocked
+    blocked_by = json.loads(current["blocked_by"])
+    if blocked_by:
+        all_raw = await fetch_all_tasks_raw(db)
+        blocker_statuses = {t["id"]: t["status"] for t in all_raw}
+        is_blocked = any(
+            blocker_statuses.get(bid, "done") != "done"
+            for bid in blocked_by
+        )
+        if is_blocked:
+            await db.close()
+            raise HTTPException(409, "Task is blocked by unfinished dependencies")
+
+    now = datetime.now(timezone.utc).isoformat()
+    metadata = json.loads(current["metadata"])
+    metadata["claimed_by"] = claimed_by
+
+    await db.execute(
+        """UPDATE tasks SET status = 'in_progress', metadata = ?, updated_at = ? WHERE id = ?""",
+        (json.dumps(metadata), now, task_id),
+    )
+    await db.commit()
+
+    cursor = await db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
+    row = await cursor.fetchone()
+    all_raw = await fetch_all_tasks_raw(db)
+    await db.close()
+    return row_to_task(row, all_raw)
+
+
+@app.patch("/api/tasks/{task_id}/metadata", response_model=TaskResponse)
+async def merge_task_metadata(task_id: str, patch: dict):
+    """Merge keys into a task's metadata (instead of replacing it).
+
+    Existing keys not in the patch are preserved. Keys set to null are removed.
+    """
+    db = await get_db()
+    cursor = await db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
+    row = await cursor.fetchone()
+    if not row:
+        await db.close()
+        raise HTTPException(404, "Task not found")
+
+    current = dict(row)
+    metadata = json.loads(current["metadata"])
+
+    for key, value in patch.items():
+        if value is None:
+            metadata.pop(key, None)
+        else:
+            metadata[key] = value
+
+    now = datetime.now(timezone.utc).isoformat()
+    await db.execute(
+        "UPDATE tasks SET metadata = ?, updated_at = ? WHERE id = ?",
+        (json.dumps(metadata), now, task_id),
     )
     await db.commit()
 

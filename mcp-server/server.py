@@ -44,7 +44,7 @@ async def list_tasks(status: Optional[str] = None, specialization: Optional[str]
     """List tasks on the board.
 
     Args:
-        status: Filter by status (backlog, queued, in_progress, needs_review, done).
+        status: Filter by status (backlog, queued, in_progress, needs_review, done, error).
         specialization: Filter by specialization (general, coding, planning, research).
     """
     params = {}
@@ -81,7 +81,7 @@ async def create_task(
     Args:
         title: Task title (required).
         description: Task description.
-        status: Initial status (backlog, queued, in_progress, needs_review, done).
+        status: Initial status (backlog, queued, in_progress, needs_review, done, error).
         specialization: Task specialization (general, coding, planning, research).
         priority: Priority (higher = more important). Default 0.
         blocked_by: List of task IDs this task depends on.
@@ -149,7 +149,7 @@ async def update_task(
         task_id: The task ID to update.
         title: New title.
         description: New description.
-        status: New status (backlog, queued, in_progress, needs_review, done).
+        status: New status (backlog, queued, in_progress, needs_review, done, error).
         specialization: New specialization (general, coding, planning, research).
         priority: New priority.
         blocked_by: New list of blocker task IDs (replaces existing list).
@@ -180,6 +180,56 @@ async def update_task(
             return resp.json()
         except httpx.HTTPError as e:
             logger.error("update_task failed: %s", e)
+            raise
+
+
+@mcp.tool()
+async def claim_task(task_id: str, claimed_by: str) -> dict:
+    """Atomically claim a queued, unblocked task. Sets status to in_progress.
+
+    Returns 409 if the task is not queued, is blocked, or already claimed.
+
+    Args:
+        task_id: The task ID to claim.
+        claimed_by: Identifier of the agent claiming the task.
+    """
+    url = _api(f"/tasks/{task_id}/claim")
+    logger.debug("claim_task -> POST %s claimed_by=%s", url, claimed_by)
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.post(url, params={"claimed_by": claimed_by})
+            logger.debug("claim_task <- %s (%d bytes)", resp.status_code, len(resp.content))
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 409:
+                return {"error": e.response.json().get("detail", "Task not claimable")}
+            raise
+        except httpx.HTTPError as e:
+            logger.error("claim_task failed: %s", e)
+            raise
+
+
+@mcp.tool()
+async def merge_metadata(task_id: str, metadata: dict) -> dict:
+    """Merge keys into a task's metadata (instead of replacing it).
+
+    Existing keys not in the patch are preserved. Keys set to null are removed.
+
+    Args:
+        task_id: The task ID.
+        metadata: Dict of keys to merge into existing metadata.
+    """
+    url = _api(f"/tasks/{task_id}/metadata")
+    logger.debug("merge_metadata -> PATCH %s body=%s", url, metadata)
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.patch(url, json=metadata)
+            logger.debug("merge_metadata <- %s (%d bytes)", resp.status_code, len(resp.content))
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as e:
+            logger.error("merge_metadata failed: %s", e)
             raise
 
 
