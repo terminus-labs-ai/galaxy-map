@@ -208,6 +208,31 @@ async def list_tasks(
   return [row_to_task(r, all_raw) for r in rows]
 
 
+def _title_similarity(title1: str, title2: str) -> float:
+  """Simple similarity check for task titles."""
+  t1 = title1.lower().strip()
+  t2 = title2.lower().strip()
+  if t1 == t2:
+    return 1.0
+  # Check if one contains the other (after stripping common prefixes)
+  common_prefixes = ["create ", "add ", "implement ", "fix ", "update ", "remove "]
+  for prefix in common_prefixes:
+    if t1.startswith(prefix):
+      t1 = t1[len(prefix):].strip()
+    if t2.startswith(prefix):
+      t2 = t2[len(prefix):].strip()
+  if t1 == t2:
+    return 1.0
+  # Check if titles are very similar (share most significant words)
+  words1 = set(t1.split()) - {"the", "a", "an", "and", "or", "to", "of", "in", "for", "on", "with"}
+  words2 = set(t2.split()) - {"the", "a", "an", "and", "or", "to", "of", "in", "for", "on", "with"}
+  if not words1 or not words2:
+    return 0.0
+  intersection = len(words1 & words2)
+  union = len(words1 | words2)
+  return intersection / union if union > 0 else 0.0
+
+
 @app.post("/api/tasks", response_model=TaskResponse, status_code=201)
 async def create_task(task: TaskCreate):
   """Create a new task."""
@@ -226,6 +251,22 @@ async def create_task(task: TaskCreate):
     if await cursor.fetchone():
       await db.close()
       raise HTTPException(409, f"Task with id '{task_id}' already exists")
+
+  # Check for duplicate tasks with similar titles
+  cursor = await db.execute(
+    "SELECT id, title, status FROM tasks WHERE status NOT IN ('done', 'error')"
+  )
+  existing_tasks = await cursor.fetchall()
+  for row in existing_tasks:
+    existing_title = row["title"]
+    similarity = _title_similarity(task.title, existing_title)
+    if similarity >= 0.85:  # 85% similarity threshold
+      await db.close()
+      raise HTTPException(
+        409,
+        f"Potential duplicate task found: '{existing_title}' "
+        f"(similarity: {similarity:.0%}). Use update_task to modify the existing task instead.",
+      )
 
   await db.execute(
     """INSERT INTO tasks (id, title, description, status, specialization, priority, blocked_by, metadata, created_at, updated_at)
