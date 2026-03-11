@@ -285,6 +285,44 @@ async def list_specializations() -> list[str]:
             raise
 
 
+@mcp.tool()
+async def get_task_stats(
+    status: Optional[str] = None,
+    specialization: Optional[str] = None,
+) -> dict:
+    """Get task statistics.
+
+    Returns total task count and breakdowns by status and specialization.
+    Optional status and specialization query params can filter the statistics.
+
+    Args:
+        status: Filter by status (backlog, queued, in_progress, needs_review, done, error).
+        specialization: Filter by specialization (general, coding, planning, research).
+
+    Returns:
+        dict with keys:
+            - total: Total number of tasks
+            - by_status: Dict mapping status -> count
+            - by_specialization: Dict mapping specialization -> count
+    """
+    params = {}
+    if status:
+        params["status"] = status
+    if specialization:
+        params["specialization"] = specialization
+    url = _api("/stats/tasks")
+    logger.debug("get_task_stats -> GET %s params=%s", url, params)
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.get(url, params=params)
+            logger.debug("get_task_stats <- %s (%d bytes)", resp.status_code, len(resp.content))
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as e:
+            logger.error("get_task_stats failed: %s", e)
+            raise
+
+
 def main():
     logger.info("Running with transport=%s", TRANSPORT)
     mcp.run(transport=TRANSPORT)
