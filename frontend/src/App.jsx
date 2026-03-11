@@ -481,7 +481,7 @@ export default function App() {
 
   const fetchTasks = useCallback(async () => {
     try {
-      const data = await api("/tasks");
+      const data = await api("/tasks?status=backlog,queued,in_progress,needs_review,done");
       setTasks(data);
       setError(null);
     } catch (err) {
