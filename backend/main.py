@@ -129,6 +129,9 @@ class TaskResponse(BaseModel):
   updated_at: str
 
 
+_COMPLETED_STATUSES = {"done", "needs_review"}
+
+
 def row_to_task(row, all_tasks: list[dict] | None = None) -> dict:
   d = dict(row)
   d["metadata"] = json.loads(d["metadata"])
@@ -136,7 +139,8 @@ def row_to_task(row, all_tasks: list[dict] | None = None) -> dict:
   if all_tasks is not None:
     blocker_statuses = {t["id"]: t["status"] for t in all_tasks}
     d["is_blocked"] = any(
-      blocker_statuses.get(bid, "done") != "done" for bid in d["blocked_by"]
+      blocker_statuses.get(bid, "done") not in _COMPLETED_STATUSES
+      for bid in d["blocked_by"]
     )
   else:
     d["is_blocked"] = len(d["blocked_by"]) > 0
@@ -399,7 +403,7 @@ async def claim_task(task_id: str, claimed_by: str = Query(...)):
   if blocked_by:
     all_raw = await fetch_all_tasks_raw(db)
     blocker_statuses = {t["id"]: t["status"] for t in all_raw}
-    is_blocked = any(blocker_statuses.get(bid, "done") != "done" for bid in blocked_by)
+    is_blocked = any(blocker_statuses.get(bid, "done") not in _COMPLETED_STATUSES for bid in blocked_by)
     if is_blocked:
       await db.close()
       raise HTTPException(409, "Task is blocked by unfinished dependencies")
