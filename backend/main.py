@@ -31,7 +31,7 @@ STATUSES = [
   "done",
   "error",
 ]
-SPECIALIZATIONS = ["general", "coding", "planning", "research", "claude-code"]
+SPECIALIZATIONS = ["general", "intake", "coding", "planning", "research", "claude-code"]
 
 
 # ---------------------------------------------------------------------------
