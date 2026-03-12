@@ -8,6 +8,7 @@ const COLUMNS = [
   { key: "queued", label: "Queued" },
   { key: "in_progress", label: "In Progress" },
   { key: "needs_review", label: "Needs Review" },
+  { key: "needs_human", label: "Needs Human" },
   { key: "done", label: "Done" },
 ];
 
@@ -481,7 +482,7 @@ export default function App() {
 
   const fetchTasks = useCallback(async () => {
     try {
-      const data = await api("/tasks?status=backlog,queued,in_progress,needs_review,done");
+      const data = await api("/tasks?status=backlog,queued,in_progress,needs_review,needs_human,done");
       setTasks(data);
       setError(null);
     } catch (err) {

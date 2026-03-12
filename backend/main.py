@@ -22,7 +22,15 @@ from pydantic import BaseModel, Field
 
 DB_PATH = Path(os.environ.get("DATABASE_PATH", Path(__file__).parent / "board.db"))
 
-STATUSES = ["backlog", "queued", "in_progress", "needs_review", "done", "error"]
+STATUSES = [
+  "backlog",
+  "queued",
+  "in_progress",
+  "needs_review",
+  "needs_human",
+  "done",
+  "error",
+]
 SPECIALIZATIONS = ["general", "coding", "planning", "research", "claude-code"]
 
 
@@ -192,11 +200,11 @@ async def list_tasks(
 
   conditions = []
   params = []
-  
+
   # Default status to queued + in_progress if not specified
   if status is None:
     status = "queued,in_progress"
-  
+
   if status:
     # Support comma-separated statuses
     status_list = [s.strip() for s in status.split(",")]
@@ -205,7 +213,7 @@ async def list_tasks(
     placeholders = ",".join(["?" for _ in status_list])
     conditions.append(f"status IN ({placeholders})")
     params.extend(status_list)
-    
+
   if specialization:
     validate_specialization(specialization)
     conditions.append("specialization = ?")
@@ -232,14 +240,38 @@ def _title_similarity(title1: str, title2: str) -> float:
   common_prefixes = ["create ", "add ", "implement ", "fix ", "update ", "remove "]
   for prefix in common_prefixes:
     if t1.startswith(prefix):
-      t1 = t1[len(prefix):].strip()
+      t1 = t1[len(prefix) :].strip()
     if t2.startswith(prefix):
-      t2 = t2[len(prefix):].strip()
+      t2 = t2[len(prefix) :].strip()
   if t1 == t2:
     return 1.0
   # Check if titles are very similar (share most significant words)
-  words1 = set(t1.split()) - {"the", "a", "an", "and", "or", "to", "of", "in", "for", "on", "with"}
-  words2 = set(t2.split()) - {"the", "a", "an", "and", "or", "to", "of", "in", "for", "on", "with"}
+  words1 = set(t1.split()) - {
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "to",
+    "of",
+    "in",
+    "for",
+    "on",
+    "with",
+  }
+  words2 = set(t2.split()) - {
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "to",
+    "of",
+    "in",
+    "for",
+    "on",
+    "with",
+  }
   if not words1 or not words2:
     return 0.0
   intersection = len(words1 & words2)
@@ -413,7 +445,9 @@ async def claim_task(task_id: str, claimed_by: str = Query(...)):
   if blocked_by:
     all_raw = await fetch_all_tasks_raw(db)
     blocker_statuses = {t["id"]: t["status"] for t in all_raw}
-    is_blocked = any(blocker_statuses.get(bid, "done") not in _COMPLETED_STATUSES for bid in blocked_by)
+    is_blocked = any(
+      blocker_statuses.get(bid, "done") not in _COMPLETED_STATUSES for bid in blocked_by
+    )
     if is_blocked:
       await db.close()
       raise HTTPException(409, "Task is blocked by unfinished dependencies")
