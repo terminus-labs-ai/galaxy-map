@@ -12,7 +12,7 @@ const COLUMNS = [
   { key: "done", label: "Done" },
 ];
 
-const SPECIALIZATIONS = ["general", "coding", "planning", "research", "claude-code"];
+const SPECIALIZATIONS = ["general", "intake", "planning", "claude-code", "coding", "research"];
 
 const SPEC_COLORS = {
   general: "#71717a",
