@@ -16,6 +16,7 @@ const SPECIALIZATIONS = ["general", "intake", "planning", "claude-code", "coding
 
 const SPEC_COLORS = {
   general: "#71717a",
+  intake: "#5599ff",
   coding: "#a78bfa",
   planning: "#fb923c",
   research: "#34d399",

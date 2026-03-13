@@ -67,6 +67,21 @@ async def init_db():
   await db.execute(
     "CREATE INDEX IF NOT EXISTS idx_tasks_specialization ON tasks(specialization)"
   )
+
+  await db.execute("""
+        CREATE TABLE IF NOT EXISTS messages (
+            id              TEXT PRIMARY KEY,
+            user_id         TEXT NOT NULL,
+            text            TEXT NOT NULL,
+            response        TEXT,
+            status          TEXT NOT NULL DEFAULT 'pending',
+            created_at      TEXT NOT NULL,
+            updated_at      TEXT NOT NULL
+        )
+    """)
+  await db.execute("CREATE INDEX IF NOT EXISTS idx_messages_status ON messages(status)")
+  await db.execute("CREATE INDEX IF NOT EXISTS idx_messages_user_id ON messages(user_id)")
+
   await db.commit()
   await db.close()
 
@@ -135,6 +150,26 @@ class TaskResponse(BaseModel):
   metadata: dict
   created_at: str
   updated_at: str
+
+
+class MessageCreate(BaseModel):
+  user_id: str
+  text: str
+
+
+class MessageResponse(BaseModel):
+  id: str
+  user_id: str
+  text: str
+  response: Optional[str] = None
+  status: str  # pending, answered
+  created_at: str
+  updated_at: str
+
+
+class MessageUpdate(BaseModel):
+  response: Optional[str] = None
+  status: Optional[str] = None
 
 
 _COMPLETED_STATUSES = {"done", "needs_review"}
@@ -544,6 +579,102 @@ async def list_statuses():
 async def list_specializations():
   """Return the list of valid specializations."""
   return SPECIALIZATIONS
+
+
+# ---------------------------------------------------------------------------
+# Messages
+# ---------------------------------------------------------------------------
+
+
+@app.post("/api/messages", response_model=MessageResponse, status_code=201)
+async def create_message(msg: MessageCreate):
+  """Create a new message from Telegram or any source."""
+  db = await get_db()
+  now = datetime.now(timezone.utc).isoformat()
+  msg_id = uuid.uuid4().hex[:12]
+
+  await db.execute(
+    """INSERT INTO messages (id, user_id, text, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)""",
+    (msg_id, msg.user_id, msg.text, "pending", now, now),
+  )
+  await db.commit()
+
+  cursor = await db.execute("SELECT * FROM messages WHERE id = ?", (msg_id,))
+  row = await cursor.fetchone()
+  await db.close()
+  return _message_row_to_response(row)
+
+
+@app.get("/api/messages", response_model=list[MessageResponse])
+async def list_messages(status: Optional[str] = Query(None)):
+  """List messages, optionally filtered by status (pending, answered)."""
+  db = await get_db()
+
+  if status:
+    cursor = await db.execute(
+      "SELECT * FROM messages WHERE status = ? ORDER BY created_at DESC",
+      (status,),
+    )
+  else:
+    cursor = await db.execute("SELECT * FROM messages ORDER BY created_at DESC")
+
+  rows = await cursor.fetchall()
+  await db.close()
+  return [_message_row_to_response(r) for r in rows]
+
+
+@app.get("/api/messages/{message_id}", response_model=MessageResponse)
+async def get_message(message_id: str):
+  """Get a single message by ID."""
+  db = await get_db()
+  cursor = await db.execute("SELECT * FROM messages WHERE id = ?", (message_id,))
+  row = await cursor.fetchone()
+  await db.close()
+  if not row:
+    raise HTTPException(404, "Message not found")
+  return _message_row_to_response(row)
+
+
+@app.patch("/api/messages/{message_id}", response_model=MessageResponse)
+async def update_message(message_id: str, updates: MessageUpdate):
+  """Update a message (add response, change status)."""
+  db = await get_db()
+  cursor = await db.execute("SELECT * FROM messages WHERE id = ?", (message_id,))
+  row = await cursor.fetchone()
+  if not row:
+    await db.close()
+    raise HTTPException(404, "Message not found")
+
+  current = dict(row)
+  now = datetime.now(timezone.utc).isoformat()
+
+  new_response = updates.response if updates.response is not None else current.get("response")
+  new_status = updates.status if updates.status is not None else current["status"]
+
+  await db.execute(
+    "UPDATE messages SET response = ?, status = ?, updated_at = ? WHERE id = ?",
+    (new_response, new_status, now, message_id),
+  )
+  await db.commit()
+
+  cursor = await db.execute("SELECT * FROM messages WHERE id = ?", (message_id,))
+  row = await cursor.fetchone()
+  await db.close()
+  return _message_row_to_response(row)
+
+
+def _message_row_to_response(row) -> dict:
+  """Convert a message row to a response dict."""
+  return {
+    "id": row["id"],
+    "user_id": row["user_id"],
+    "text": row["text"],
+    "response": row["response"],
+    "status": row["status"],
+    "created_at": row["created_at"],
+    "updated_at": row["updated_at"],
+  }
 
 
 @app.get("/api/health")

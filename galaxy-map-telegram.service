@@ -1,0 +1,18 @@
+[Unit]
+Description=Galaxy Map Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=divante
+WorkingDirectory=/home/divante/git/galaxy-map/backend
+ExecStart=/usr/bin/python3 -u tg_bot.py
+Environment="TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN_HERE"
+Environment="GALAXY_MAP_URL=http://localhost:8000"
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
