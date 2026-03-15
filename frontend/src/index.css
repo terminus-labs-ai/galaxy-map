@@ -460,6 +460,7 @@ body {
 }
 
 .modal-textarea {
+  width: 100%;
   font-family: var(--font-sans);
   font-size: 13px;
   padding: 6px 8px;
@@ -468,6 +469,7 @@ body {
   background: transparent;
   color: var(--text);
   outline: none;
+  box-sizing: border-box;
   resize: vertical;
   min-height: 60px;
   max-height: 200px;
