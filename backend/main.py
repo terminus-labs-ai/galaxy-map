@@ -315,6 +315,63 @@ async def list_tasks(
   return [row_to_task(r, all_raw) for r in rows]
 
 
+@app.get("/api/tasks/search", response_model=list[TaskResponse])
+async def search_tasks(q: str = Query(..., min_length=1)):
+  """Search tasks by ID, title, description, or metadata.
+
+  The search query is matched case-insensitively across:
+  - Task ID (exact match)
+  - Title (substring match)
+  - Description (substring match)
+  - Metadata (JSON string match)
+  """
+  db = await get_db()
+
+  # Get all tasks
+  cursor = await db.execute("SELECT * FROM tasks")
+  rows = await cursor.fetchall()
+  all_raw = await fetch_all_tasks_raw(db)
+  await db.close()
+
+  # Filter tasks based on search query
+  q_lower = q.lower()
+  results = []
+
+  for row in rows:
+    task = dict(row)
+    task_id = task["id"].lower()
+    title = task["title"].lower()
+    description = task["description"].lower()
+    metadata_str = task["metadata"].lower()
+
+    # Match if query is in any of the searchable fields
+    if (q_lower == task_id or
+        q_lower in title or
+        q_lower in description or
+        q_lower in metadata_str):
+      results.append(row_to_task(row, all_raw))
+
+  # Sort by relevance (exact ID match first, then title match, then description)
+  def relevance_score(task):
+    q_lower = q.lower()
+    task_id = task["id"].lower()
+    title = task["title"].lower()
+    description = task["description"].lower()
+
+    if q_lower == task_id:
+      return (0, 0)  # Exact ID match is highest priority
+    if title.startswith(q_lower):
+      return (1, 0)  # Title starts with query
+    if q_lower in title:
+      return (2, title.find(q_lower))  # Title contains query
+    if description.startswith(q_lower):
+      return (3, 0)  # Description starts with query
+    return (4, description.find(q_lower))  # Description contains query
+
+  results.sort(key=relevance_score)
+  return results
+
+
 def _title_similarity(title1: str, title2: str) -> float:
   """Simple similarity check for task titles."""
   t1 = title1.lower().strip()

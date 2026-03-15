@@ -25,7 +25,7 @@ services:
     networks:
       - galaxy-map
 
-  galaxy-map-mcp:
+  mcp:
     build:
       context: ./mcp-server
       dockerfile: Dockerfile
