@@ -1,0 +1,65 @@
+# Application configuration
+
+app:
+  title: "Galaxy Map"
+  description: "Minimal task tracker for AI agents"
+  version: "0.3.0"
+  debug: false
+
+database:
+  path: "board.db"  # Relative to backend/ or override via DATABASE_PATH env var
+  journal_mode: "WAL"
+  foreign_keys: true
+
+api:
+  cors:
+    allow_origins: ["*"]
+    allow_credentials: true
+    allow_methods: ["*"]
+    allow_headers: ["*"]
+
+tasks:
+  # Statuses that indicate task completion (used for blocking logic)
+  # Only "done" unblocks dependent tasks
+  completed_statuses: ["done"]
+  
+  # Duplicate detection
+  duplicate_detection:
+    enabled: true
+    similarity_threshold: 0.85
+    ignore_prefixes:
+      - "create"
+      - "add"
+      - "implement"
+      - "fix"
+      - "update"
+      - "remove"
+    ignore_words:
+      - "the"
+      - "a"
+      - "an"
+      - "and"
+      - "or"
+      - "to"
+      - "of"
+      - "in"
+      - "for"
+      - "on"
+      - "with"
+
+specializations:
+  - "general"
+  - "intake"
+  - "coding"
+  - "planning"
+  - "research"
+  - "claude-code"
+
+messages:
+  # Status values for messages
+  valid_statuses: ["pending", "answered"]
+  default_status: "pending"
+
+api_defaults:
+  # Default status filter in /api/tasks if not specified
+  list_tasks_default_status: "queued,in_progress"

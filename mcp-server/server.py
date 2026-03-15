@@ -65,6 +65,35 @@ async def list_tasks(status: Optional[str] = None, specialization: Optional[str]
             raise
 
 
+
+@mcp.tool()
+async def search_tasks(q: str) -> list[dict]:
+    """Search tasks by full-text query across ID, title, description, and metadata.
+
+    Searches are case-insensitive and ranked by relevance:
+    1. Exact task ID match (highest)
+    2. Title starts with query
+    3. Title contains query
+    4. Description starts with query
+    5. Description contains query
+    6. Metadata contains query (lowest)
+
+    Args:
+        q: Search query (minimum 1 character).
+    """
+    params = {"q": q}
+    url = _api("/tasks/search")
+    logger.debug("search_tasks -> GET %s params=%s", url, params)
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.get(url, params=params)
+            logger.debug("search_tasks <- %s (%d bytes)", resp.status_code, len(resp.content))
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as e:
+            logger.error("search_tasks failed: %s", e)
+            raise
+
 @mcp.tool()
 async def create_task(
     title: str,

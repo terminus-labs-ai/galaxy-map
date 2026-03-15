@@ -266,6 +266,71 @@ function CreateTaskModal({ onClose, onCreate }) {
   );
 }
 
+function SearchResultsModal({ searchQuery, searchResults, allTasks, onClose, onOpenDetail }) {
+  // Escape key handler
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  });
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal modal-search" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="modal-header">
+          <div className="modal-header-badges">
+            <span style={{ fontSize: "14px", fontWeight: "500" }}>
+              Search Results ({searchResults.length})
+            </span>
+          </div>
+          <button className="modal-close" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="modal-body search-results">
+          {searchResults.length === 0 ? (
+            <div className="search-no-results">
+              No results for "{searchQuery}"
+            </div>
+          ) : (
+            <div className="search-results-list">
+              {searchResults.map((task) => (
+                <div
+                  key={task.id}
+                  className="search-result-item"
+                  onClick={() => {
+                    onOpenDetail(task.id);
+                    onClose();
+                  }}
+                >
+                  <div className="search-result-header">
+                    <div className="search-result-title">{task.title}</div>
+                    <SpecBadge spec={task.specialization} />
+                  </div>
+                  {task.description && (
+                    <div className="search-result-desc">
+                      {truncate(task.description, 80)}
+                    </div>
+                  )}
+                  <div className="search-result-meta">
+                    <span className="search-result-id">{task.id}</span>
+                    <span className="search-result-status">{task.status}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TaskDetailModal({ taskId, allTasks, onClose, onUpdate, onDelete, columns }) {
   const task = allTasks.find((t) => t.id === taskId);
   const [draft, setDraft] = useState(null);
@@ -545,6 +610,10 @@ export default function App() {
   const [error, setError] = useState(null);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Fetch statuses once on mount and build columns
   useEffect(() => {
@@ -601,12 +670,51 @@ export default function App() {
     fetchTasks();
   };
 
+  const handleSearch = async (query) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      setIsSearchOpen(false);
+      return;
+    }
+    
+    setIsSearching(true);
+    try {
+      const results = await api(`/tasks/search?q=${encodeURIComponent(query)}`);
+      setSearchResults(results);
+      if (results.length > 0) {
+        setIsSearchOpen(true);
+      }
+    } catch (err) {
+      setError(`Search failed: ${err.message}`);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   return (
     <div className="app">
       <header className="header">
         <div className="header-left">
           <h1 className="logo">Galaxy Map</h1>
           <span className="version">v0.2.0</span>
+        </div>
+        <div className="header-search">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search tasks..."
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+            onFocus={() => searchQuery && setIsSearchOpen(true)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && searchResults.length > 0) {
+                setIsSearchOpen(true);
+              }
+            }}
+          />
+          {isSearching && <div className="search-spinner">⟳</div>}
         </div>
         <button className="btn btn-add" onClick={() => setIsCreateModalOpen(true)}>
           + New Task
@@ -631,6 +739,16 @@ export default function App() {
         <CreateTaskModal
           onClose={() => setIsCreateModalOpen(false)}
           onCreate={addTask}
+        />
+      )}
+
+      {isSearchOpen && searchResults.length > 0 && (
+        <SearchResultsModal
+          searchQuery={searchQuery}
+          searchResults={searchResults}
+          allTasks={tasks}
+          onClose={() => setIsSearchOpen(false)}
+          onOpenDetail={setSelectedTaskId}
         />
       )}
 
