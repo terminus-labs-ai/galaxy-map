@@ -44,7 +44,7 @@ async def list_tasks(status: Optional[str] = None, specialization: Optional[str]
     """List tasks on the board.
 
     Args:
-        status: Filter by status (backlog, queued, in_progress, needs_review, done, error).
+        status: Filter by status. Use list_statuses() to see valid values.
         specialization: Filter by specialization (general, coding, planning, research).
     """
     params = {}
@@ -81,7 +81,7 @@ async def create_task(
     Args:
         title: Task title (required).
         description: Task description.
-        status: Initial status (backlog, queued, in_progress, needs_review, done, error).
+        status: Initial status. Use list_statuses() to see valid values and descriptions.
         specialization: Task specialization (general, coding, planning, research).
         priority: Priority (higher = more important). Default 0.
         blocked_by: List of task IDs this task depends on.
@@ -149,7 +149,7 @@ async def update_task(
         task_id: The task ID to update.
         title: New title.
         description: New description.
-        status: New status (backlog, queued, in_progress, needs_review, done, error).
+        status: New status. Use list_statuses() or get_status_details() to see valid values and allowed transitions.
         specialization: New specialization (general, coding, planning, research).
         priority: New priority.
         blocked_by: New list of blocker task IDs (replaces existing list).
@@ -254,8 +254,12 @@ async def delete_task(task_id: str) -> str:
 
 
 @mcp.tool()
-async def list_statuses() -> list[str]:
-    """List valid task statuses (board columns), in order."""
+async def list_statuses() -> list[dict]:
+    """List all valid task statuses with metadata including descriptions.
+
+    Returns a list of status objects, each with: key, label, description, order, color, allowed_transitions, terminal.
+    Use descriptions to understand the purpose of each status and guide agents in choosing the right one.
+    """
     url = _api("/statuses")
     logger.debug("list_statuses -> GET %s", url)
     async with httpx.AsyncClient() as client:
@@ -266,6 +270,29 @@ async def list_statuses() -> list[str]:
             return resp.json()
         except httpx.HTTPError as e:
             logger.error("list_statuses failed: %s", e)
+            raise
+
+
+@mcp.tool()
+async def get_status_details(status_key: str) -> dict:
+    """Get detailed information for a single status, including description and allowed transitions.
+
+    Args:
+        status_key: The status key to look up (e.g. 'in_progress', 'queued').
+
+    Returns a status object with: key, label, description, order, color, allowed_transitions, terminal.
+    Use the description to understand when to move a task to this status.
+    """
+    url = _api(f"/statuses/{status_key}")
+    logger.debug("get_status_details -> GET %s", url)
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.get(url)
+            logger.debug("get_status_details <- %s (%d bytes)", resp.status_code, len(resp.content))
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as e:
+            logger.error("get_status_details failed: %s", e)
             raise
 
 
@@ -296,7 +323,7 @@ async def get_task_stats(
     Optional status and specialization query params can filter the statistics.
 
     Args:
-        status: Filter by status (backlog, queued, in_progress, needs_review, done, error).
+        status: Filter by status. Use list_statuses() to see valid values.
         specialization: Filter by specialization (general, coding, planning, research).
 
     Returns:

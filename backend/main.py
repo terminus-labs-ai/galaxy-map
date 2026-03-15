@@ -6,12 +6,14 @@ FastAPI + SQLite backend.
 import json
 import os
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
 import aiosqlite
+import yaml
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -21,17 +23,52 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 
 DB_PATH = Path(os.environ.get("DATABASE_PATH", Path(__file__).parent / "board.db"))
+CONFIG_PATH = Path(__file__).parent / "config" / "statuses.yaml"
 
-STATUSES = [
-  "backlog",
-  "queued",
-  "in_progress",
-  "needs_review",
-  "needs_human",
-  "done",
-  "error",
-]
+# Global config loaded on startup
+_STATUSES_CONFIG = None
+_STATUSES_LIST = []
 SPECIALIZATIONS = ["general", "intake", "coding", "planning", "research", "claude-code"]
+
+
+@dataclass
+class ConfigStatus:
+  """Status configuration with metadata."""
+  key: str
+  label: str
+  description: str
+  order: int
+  color: str
+  allowed_transitions: list[str]
+  terminal: bool
+
+
+def load_statuses_config():
+  """Load statuses config from YAML file."""
+  global _STATUSES_CONFIG, _STATUSES_LIST
+  try:
+    with open(CONFIG_PATH, "r") as f:
+      data = yaml.safe_load(f)
+    statuses = data.get("statuses", [])
+    _STATUSES_CONFIG = {s["key"]: ConfigStatus(**s) for s in statuses}
+    _STATUSES_LIST = [ConfigStatus(**s) for s in statuses]
+    _STATUSES_LIST.sort(key=lambda x: x.order)
+  except Exception as e:
+    raise RuntimeError(f"Failed to load statuses config from {CONFIG_PATH}: {e}")
+
+
+def get_statuses_config():
+  """Get loaded statuses config (must be called after startup)."""
+  if _STATUSES_CONFIG is None:
+    raise RuntimeError("Statuses config not loaded. Call load_statuses_config() on startup.")
+  return _STATUSES_CONFIG
+
+
+def get_statuses_list():
+  """Get sorted list of all statuses."""
+  if not _STATUSES_LIST:
+    raise RuntimeError("Statuses config not loaded. Call load_statuses_config() on startup.")
+  return _STATUSES_LIST
 
 
 # ---------------------------------------------------------------------------
@@ -88,6 +125,7 @@ async def init_db():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+  load_statuses_config()
   await init_db()
   yield
 
@@ -152,6 +190,16 @@ class TaskResponse(BaseModel):
   updated_at: str
 
 
+class StatusResponse(BaseModel):
+  key: str
+  label: str
+  description: str
+  order: int
+  color: str
+  allowed_transitions: list[str]
+  terminal: bool
+
+
 class MessageCreate(BaseModel):
   user_id: str
   text: str
@@ -201,8 +249,10 @@ async def fetch_all_tasks_raw(db) -> list[dict]:
 
 
 def validate_status(status: str):
-  if status not in STATUSES:
-    raise HTTPException(400, f"Invalid status. Must be one of: {STATUSES}")
+  config = get_statuses_config()
+  if status not in config:
+    valid = list(config.keys())
+    raise HTTPException(400, f"Invalid status. Must be one of: {valid}")
 
 
 def validate_specialization(spec: str):
@@ -569,10 +619,41 @@ async def delete_task(task_id: str):
   await db.close()
 
 
-@app.get("/api/statuses")
+@app.get("/api/statuses", response_model=list[StatusResponse])
 async def list_statuses():
-  """Return the ordered list of valid statuses (columns)."""
-  return STATUSES
+  """Return all valid statuses with metadata (label, description, color, allowed_transitions, etc)."""
+  statuses = get_statuses_list()
+  return [
+    StatusResponse(
+      key=s.key,
+      label=s.label,
+      description=s.description,
+      order=s.order,
+      color=s.color,
+      allowed_transitions=s.allowed_transitions,
+      terminal=s.terminal,
+    )
+    for s in statuses
+  ]
+
+
+@app.get("/api/statuses/{status_key}", response_model=StatusResponse)
+async def get_status_details(status_key: str):
+  """Get detailed information for a single status, including allowed transitions."""
+  config = get_statuses_config()
+  if status_key not in config:
+    valid = list(config.keys())
+    raise HTTPException(404, f"Status not found. Valid statuses: {valid}")
+  s = config[status_key]
+  return StatusResponse(
+    key=s.key,
+    label=s.label,
+    description=s.description,
+    order=s.order,
+    color=s.color,
+    allowed_transitions=s.allowed_transitions,
+    terminal=s.terminal,
+  )
 
 
 @app.get("/api/specializations")

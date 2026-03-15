@@ -1,0 +1,48 @@
+statuses:
+  - key: backlog
+    label: Backlog
+    description: Task is planned but not yet ready to start. Waiting for resources or dependencies.
+    order: 0
+    color: "#71717a"
+    allowed_transitions: [queued]
+    terminal: false
+
+  - key: queued
+    label: Queued
+    description: Task is ready to start. Waiting for an agent to claim it.
+    order: 1
+    color: "#5599ff"
+    allowed_transitions: [in_progress, backlog]
+    terminal: false
+
+  - key: in_progress
+    label: In Progress
+    description: Task is actively being worked on by an agent.
+    order: 2
+    color: "#a78bfa"
+    allowed_transitions: [needs_review, needs_human, backlog]
+    terminal: false
+
+  - key: needs_review
+    label: Needs Review
+    description: Task is complete but awaiting approval or code review.
+    order: 3
+    color: "#fb923c"
+    allowed_transitions: [in_progress, done, needs_human]
+    terminal: false
+
+  - key: needs_human
+    label: Needs Human
+    description: Task requires human intervention, decision, or manual action.
+    order: 4
+    color: "#f87171"
+    allowed_transitions: [in_progress, done]
+    terminal: false
+
+  - key: done
+    label: Done
+    description: Task is complete and closed.
+    order: 5
+    color: "#34d399"
+    allowed_transitions: []
+    terminal: true

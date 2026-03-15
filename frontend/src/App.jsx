@@ -3,15 +3,6 @@ import { useState, useEffect, useCallback } from "react";
 const API = "/api";
 const POLL_INTERVAL = 3000;
 
-const COLUMNS = [
-  { key: "backlog", label: "Backlog" },
-  { key: "queued", label: "Queued" },
-  { key: "in_progress", label: "In Progress" },
-  { key: "needs_review", label: "Needs Review" },
-  { key: "needs_human", label: "Needs Human" },
-  { key: "done", label: "Done" },
-];
-
 const SPECIALIZATIONS = ["general", "intake", "planning", "claude-code", "coding", "research"];
 
 const SPEC_COLORS = {
@@ -126,7 +117,7 @@ function BlockerEditor({ blockedBy, allTasks, taskId, onChange }) {
   );
 }
 
-function TaskDetailModal({ taskId, allTasks, onClose, onUpdate, onDelete }) {
+function TaskDetailModal({ taskId, allTasks, onClose, onUpdate, onDelete, columns }) {
   const task = allTasks.find((t) => t.id === taskId);
   const [draft, setDraft] = useState(null);
 
@@ -152,7 +143,7 @@ function TaskDetailModal({ taskId, allTasks, onClose, onUpdate, onDelete }) {
     return () => window.removeEventListener("keydown", handleKey);
   });
 
-  if (!task || !draft) return null;
+  if (!task || !draft || !columns) return null;
 
   const isDirty =
     draft.title !== task.title ||
@@ -181,7 +172,7 @@ function TaskDetailModal({ taskId, allTasks, onClose, onUpdate, onDelete }) {
     if (Object.keys(fields).length > 0) onUpdate(task.id, fields);
   }
 
-  const colIdx = COLUMNS.findIndex((c) => c.key === task.status);
+  const colIdx = columns.findIndex((c) => c.key === task.status);
 
   function handleMove(newStatus) {
     onUpdate(task.id, { status: newStatus });
@@ -317,17 +308,17 @@ function TaskDetailModal({ taskId, allTasks, onClose, onUpdate, onDelete }) {
             {colIdx > 0 && (
               <button
                 className="btn btn-sm"
-                onClick={() => handleMove(COLUMNS[colIdx - 1].key)}
+                onClick={() => handleMove(columns[colIdx - 1].key)}
               >
-                ← {COLUMNS[colIdx - 1].label}
+                ← {columns[colIdx - 1].label}
               </button>
             )}
-            {colIdx < COLUMNS.length - 1 && (
+            {colIdx < columns.length - 1 && (
               <button
                 className="btn btn-sm"
-                onClick={() => handleMove(COLUMNS[colIdx + 1].key)}
+                onClick={() => handleMove(columns[colIdx + 1].key)}
               >
-                {COLUMNS[colIdx + 1].label} →
+                {columns[colIdx + 1].label} →
               </button>
             )}
           </div>
@@ -380,7 +371,7 @@ function TaskCard({ task, allTasks, onOpenDetail }) {
 function Column({ column, tasks, allTasks, onOpenDetail }) {
   return (
     <div className="column">
-      <div className="column-header">
+      <div className="column-header" style={{ borderTopColor: column.color }}>
         <span className="column-title">{column.label}</span>
         <span className="column-count">{tasks.length}</span>
       </div>
@@ -478,24 +469,43 @@ function AddTaskForm({ onAdd }) {
 
 export default function App() {
   const [tasks, setTasks] = useState([]);
+  const [columns, setColumns] = useState([]);
   const [error, setError] = useState(null);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
 
+  // Fetch statuses once on mount and build columns
+  useEffect(() => {
+    async function fetchStatuses() {
+      try {
+        const statuses = await api("/statuses");
+        setColumns(statuses);
+        setError(null);
+      } catch (err) {
+        setError(`Failed to load statuses: ${err.message}`);
+      }
+    }
+    fetchStatuses();
+  }, []);
+
   const fetchTasks = useCallback(async () => {
     try {
-      const data = await api("/tasks?status=backlog,queued,in_progress,needs_review,needs_human,done");
+      // Build status query from all available statuses (from columns)
+      const statusQuery = columns.map((c) => c.key).join(",");
+      const data = await api(`/tasks?status=${statusQuery}`);
       setTasks(data);
       setError(null);
     } catch (err) {
       setError(err.message);
     }
-  }, []);
+  }, [columns]);
 
+  // Poll for task updates
   useEffect(() => {
+    if (columns.length === 0) return; // Wait for columns to load
     fetchTasks();
     const interval = setInterval(fetchTasks, POLL_INTERVAL);
     return () => clearInterval(interval);
-  }, [fetchTasks]);
+  }, [fetchTasks, columns.length]);
 
   const addTask = async (task) => {
     await api("/tasks", {
@@ -531,7 +541,7 @@ export default function App() {
       {error && <div className="error-banner">API error: {error}</div>}
 
       <div className="board">
-        {COLUMNS.map((col) => (
+        {columns.map((col) => (
           <Column
             key={col.key}
             column={col}
@@ -549,6 +559,7 @@ export default function App() {
           onClose={() => setSelectedTaskId(null)}
           onUpdate={updateTask}
           onDelete={deleteTask}
+          columns={columns}
         />
       )}
     </div>
