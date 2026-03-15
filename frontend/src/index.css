@@ -534,6 +534,30 @@ body {
   overflow-y: auto;
 }
 
+.modal-meta-editor {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  color: var(--text);
+  resize: vertical;
+}
+
+.modal-meta-editor:focus {
+  border-color: var(--primary);
+  outline: none;
+}
+
+.meta-error {
+  color: var(--error, #ef4444);
+  font-size: 12px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+
 .modal-footer {
   display: flex;
   align-items: center;

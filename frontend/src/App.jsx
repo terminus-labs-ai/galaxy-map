@@ -41,7 +41,7 @@ function truncate(text, maxLen = 120) {
   return text.slice(0, maxLen).trimEnd() + "…";
 }
 
-// ── Components ───────────────────────────────────────────────────────────
+// ── Components ───────────────────────────────────────────────────────
 
 function SpecBadge({ spec }) {
   return (
@@ -73,6 +73,45 @@ function BlockedIndicator({ task, allTasks }) {
     </span>
   );
 }
+
+
+function MetadataEditor({ value, onChange }) {
+  const [text, setText] = useState(JSON.stringify(value || {}, null, 2));
+  const [error, setError] = useState(null);
+
+  // Sync when external value changes (e.g. poll refresh)
+  useEffect(() => {
+    try {
+      const current = JSON.parse(text);
+      if (JSON.stringify(current) !== JSON.stringify(value || {})) {
+        setText(JSON.stringify(value || {}, null, 2));
+        setError(null);
+      }
+    } catch {
+      // If current text is invalid, don't overwrite user's edits
+    }
+  }, [value]);
+
+  function handleChange(e) {
+    const newText = e.target.value;
+    setText(newText);
+    try {
+      const parsed = JSON.parse(newText);
+      setError(null);
+      onChange(parsed);
+    } catch {
+      setError("Invalid JSON");
+    }
+  }
+
+  return (
+    <div>
+      <textarea className="modal-textarea modal-meta-editor" rows={6} value={text} onChange={handleChange} spellCheck={false} />
+      {error && <div className="meta-error">{error}</div>}
+    </div>
+  );
+}
+
 
 function BlockerEditor({ blockedBy, allTasks, taskId, onChange }) {
   const available = allTasks.filter(
@@ -117,6 +156,116 @@ function BlockerEditor({ blockedBy, allTasks, taskId, onChange }) {
   );
 }
 
+function CreateTaskModal({ onClose, onCreate }) {
+  const [draft, setDraft] = useState({
+    title: "",
+    description: "",
+    specialization: "general",
+  });
+
+  // Escape key handler
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  });
+
+  function handleCreate() {
+    if (!draft.title.trim()) return;
+    onCreate({
+      title: draft.title.trim(),
+      description: draft.description.trim(),
+      specialization: draft.specialization,
+    });
+    onClose();
+  }
+
+  function setField(key, value) {
+    setDraft((d) => ({ ...d, [key]: value }));
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="modal-header">
+          <div className="modal-header-badges">
+            <span style={{ fontSize: "14px", fontWeight: "500" }}>Create Task</span>
+          </div>
+          <button className="modal-close" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="modal-body">
+          {/* Title */}
+          <div className="modal-field">
+            <label className="modal-label">Title</label>
+            <input
+              autoFocus
+              className="modal-input"
+              placeholder="Task title"
+              value={draft.title}
+              onChange={(e) => setField("title", e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleCreate();
+              }}
+            />
+          </div>
+
+          {/* Description */}
+          <div className="modal-field">
+            <label className="modal-label">Description</label>
+            <textarea
+              className="modal-textarea"
+              rows={4}
+              placeholder="Description (optional)"
+              value={draft.description}
+              onChange={(e) => setField("description", e.target.value)}
+            />
+          </div>
+
+          {/* Specialization */}
+          <div className="modal-field">
+            <label className="modal-label">Specialization</label>
+            <select
+              className="input select"
+              value={draft.specialization}
+              onChange={(e) => setField("specialization", e.target.value)}
+            >
+              {SPECIALIZATIONS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="modal-footer">
+          <div className="modal-footer-left" />
+          <div className="modal-footer-right">
+            <button className="btn btn-sm" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              className="btn btn-sm btn-primary"
+              onClick={handleCreate}
+              disabled={!draft.title.trim()}
+            >
+              Create
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TaskDetailModal({ taskId, allTasks, onClose, onUpdate, onDelete, columns }) {
   const task = allTasks.find((t) => t.id === taskId);
   const [draft, setDraft] = useState(null);
@@ -130,6 +279,7 @@ function TaskDetailModal({ taskId, allTasks, onClose, onUpdate, onDelete, column
         specialization: task.specialization,
         priority: task.priority,
         blocked_by: [...task.blocked_by],
+        metadata: task.metadata ? JSON.parse(JSON.stringify(task.metadata)) : {},
       });
     }
   }, [taskId, task?.updated_at]);
@@ -150,7 +300,8 @@ function TaskDetailModal({ taskId, allTasks, onClose, onUpdate, onDelete, column
     draft.description !== (task.description || "") ||
     draft.specialization !== task.specialization ||
     draft.priority !== task.priority ||
-    JSON.stringify(draft.blocked_by) !== JSON.stringify(task.blocked_by);
+    JSON.stringify(draft.blocked_by) !== JSON.stringify(task.blocked_by) ||
+    JSON.stringify(draft.metadata) !== JSON.stringify(task.metadata || {});
 
   function tryClose() {
     if (isDirty) {
@@ -169,6 +320,8 @@ function TaskDetailModal({ taskId, allTasks, onClose, onUpdate, onDelete, column
     if (draft.priority !== task.priority) fields.priority = draft.priority;
     if (JSON.stringify(draft.blocked_by) !== JSON.stringify(task.blocked_by))
       fields.blocked_by = draft.blocked_by;
+    if (JSON.stringify(draft.metadata) !== JSON.stringify(task.metadata || {}))
+      fields.metadata = draft.metadata;
     if (Object.keys(fields).length > 0) onUpdate(task.id, fields);
   }
 
@@ -291,15 +444,10 @@ function TaskDetailModal({ taskId, allTasks, onClose, onUpdate, onDelete, column
           </div>
 
           {/* Metadata JSON */}
-          {task.metadata &&
-            Object.keys(task.metadata).length > 0 && (
-              <div className="modal-field">
-                <label className="modal-label">Metadata</label>
-                <pre className="modal-meta-json">
-                  {JSON.stringify(task.metadata, null, 2)}
-                </pre>
-              </div>
-            )}
+          <div className="modal-field">
+            <label className="modal-label">Metadata</label>
+            <MetadataEditor value={draft.metadata} onChange={(val) => setField("metadata", val)} />
+          </div>
         </div>
 
         {/* Footer */}
@@ -389,82 +537,6 @@ function Column({ column, tasks, allTasks, onOpenDetail }) {
   );
 }
 
-function AddTaskForm({ onAdd }) {
-  const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [desc, setDesc] = useState("");
-  const [spec, setSpec] = useState("general");
-
-  const submit = () => {
-    if (!title.trim()) return;
-    onAdd({
-      title: title.trim(),
-      description: desc.trim(),
-      specialization: spec,
-    });
-    setTitle("");
-    setDesc("");
-    setSpec("general");
-    setOpen(false);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey && e.target.tagName !== "TEXTAREA") {
-      e.preventDefault();
-      submit();
-    }
-    if (e.key === "Escape") {
-      setOpen(false);
-    }
-  };
-
-  if (!open) {
-    return (
-      <button className="btn btn-add" onClick={() => setOpen(true)}>
-        + New Task
-      </button>
-    );
-  }
-
-  return (
-    <div className="add-form" onKeyDown={handleKeyDown}>
-      <input
-        autoFocus
-        className="input"
-        placeholder="Task title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
-      <textarea
-        className="input textarea"
-        placeholder="Description (optional)"
-        rows={2}
-        value={desc}
-        onChange={(e) => setDesc(e.target.value)}
-      />
-      <select
-        className="input select"
-        value={spec}
-        onChange={(e) => setSpec(e.target.value)}
-      >
-        {SPECIALIZATIONS.map((s) => (
-          <option key={s} value={s}>
-            {s}
-          </option>
-        ))}
-      </select>
-      <div className="add-form-actions">
-        <button className="btn btn-primary" onClick={submit}>
-          Create
-        </button>
-        <button className="btn" onClick={() => setOpen(false)}>
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ── App ──────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -472,6 +544,7 @@ export default function App() {
   const [columns, setColumns] = useState([]);
   const [error, setError] = useState(null);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Fetch statuses once on mount and build columns
   useEffect(() => {
@@ -535,7 +608,9 @@ export default function App() {
           <h1 className="logo">Galaxy Map</h1>
           <span className="version">v0.2.0</span>
         </div>
-        <AddTaskForm onAdd={addTask} />
+        <button className="btn btn-add" onClick={() => setIsCreateModalOpen(true)}>
+          + New Task
+        </button>
       </header>
 
       {error && <div className="error-banner">API error: {error}</div>}
@@ -551,6 +626,13 @@ export default function App() {
           />
         ))}
       </div>
+
+      {isCreateModalOpen && (
+        <CreateTaskModal
+          onClose={() => setIsCreateModalOpen(false)}
+          onCreate={addTask}
+        />
+      )}
 
       {selectedTaskId && (
         <TaskDetailModal
