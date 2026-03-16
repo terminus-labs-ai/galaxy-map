@@ -3,10 +3,10 @@ import { useState, useEffect, useCallback } from "react";
 const API = "/api";
 const POLL_INTERVAL = 3000;
 
-const SPECIALIZATIONS = ["general", "intake", "planning", "claude-code", "coding", "research"];
+const SPECIALIZATIONS = ["diego", "intake", "planning", "claude-code", "coding", "research"];
 
 const SPEC_COLORS = {
-  general: "#71717a",
+  diego: "#71717a",
   intake: "#5599ff",
   coding: "#a78bfa",
   planning: "#fb923c",
@@ -48,8 +48,8 @@ function SpecBadge({ spec }) {
     <span
       className="spec-badge"
       style={{
-        color: SPEC_COLORS[spec] || SPEC_COLORS.general,
-        borderColor: SPEC_COLORS[spec] || SPEC_COLORS.general,
+        color: SPEC_COLORS[spec] || SPEC_COLORS.diego,
+        borderColor: SPEC_COLORS[spec] || SPEC_COLORS.diego,
       }}
     >
       {spec}
@@ -160,7 +160,7 @@ function CreateTaskModal({ onClose, onCreate }) {
   const [draft, setDraft] = useState({
     title: "",
     description: "",
-    specialization: "general",
+    specialization: "diego",
   });
 
   // Escape key handler
@@ -677,7 +677,7 @@ export default function App() {
       setIsSearchOpen(false);
       return;
     }
-    
+
     setIsSearching(true);
     try {
       const results = await api(`/tasks/search?q=${encodeURIComponent(query)}`);

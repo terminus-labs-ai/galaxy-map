@@ -7,7 +7,7 @@ app:
   debug: false
 
 database:
-  path: "board.db"  # Relative to backend/ or override via DATABASE_PATH env var
+  path: "board.db" # Relative to backend/ or override via DATABASE_PATH env var
   journal_mode: "WAL"
   foreign_keys: true
 
@@ -22,7 +22,7 @@ tasks:
   # Statuses that indicate task completion (used for blocking logic)
   # Only "done" unblocks dependent tasks
   completed_statuses: ["done"]
-  
+
   # Duplicate detection
   duplicate_detection:
     enabled: true
@@ -48,7 +48,7 @@ tasks:
       - "with"
 
 specializations:
-  - "general"
+  - "diego"
   - "intake"
   - "coding"
   - "planning"
