@@ -30,13 +30,14 @@ All endpoints are under `/api`.
 
 | Method   | Path                      | Description                                           |
 | -------- | ------------------------- | ----------------------------------------------------- |
-| `GET`    | `/api/tasks`              | List tasks (`?status=` and `?specialization=`)       |
+| `GET`    | `/api/tasks`              | List tasks (`?status=`, `?specialization=`, `?project_id=`) |
 | `POST`   | `/api/tasks`              | Create a task                                         |
 | `GET`    | `/api/tasks/{id}`         | Get a single task                                     |
 | `PATCH`  | `/api/tasks/{id}`         | Update a task (partial)                               |
 | `DELETE` | `/api/tasks/{id}`         | Delete a task                                         |
 | `POST`   | `/api/tasks/{id}/claim`   | Claim a queued task (atomically move to in_progress) |
 | `PATCH`  | `/api/tasks/{id}/metadata`| Merge metadata into task (don't replace)              |
+| `GET`    | `/api/tasks/projects`     | List distinct project_ids with task counts            |
 | `GET`    | `/api/statuses`           | List all valid statuses with metadata and descriptions |
 | `GET`    | `/api/statuses/{key}`     | Get single status details including allowed transitions |
 | `GET`    | `/api/specializations`    | List valid specializations                            |
@@ -50,7 +51,8 @@ curl -X POST http://localhost:8000/api/tasks \
   -d '{
     "title": "Implement context caching",
     "description": "Add LRU cache for zone context to reduce tokens.",
-    "specialization": "coding"
+    "specialization": "coding",
+    "project_id": "perf-improvements"
   }'
 ```
 
@@ -115,6 +117,20 @@ curl "http://localhost:8000/api/tasks?status=queued&specialization=coding"
 ```
 
 This is how agents pick up work — query for their specialization + a target status.
+
+
+### Filter by project
+
+Tasks can be grouped by an optional `project_id` slug — a lightweight label, not a foreign key.
+
+```bash
+# List tasks in a specific project
+curl "http://localhost:8000/api/tasks?status=queued&project_id=perf-improvements"
+
+# List all distinct projects with task counts
+curl http://localhost:8000/api/tasks/projects
+# [{"project_id": "perf-improvements", "task_count": 3}, ...]
+```
 
 ### Agent metadata
 
@@ -207,7 +223,7 @@ The MCP server wraps the REST API as MCP tools, so any MCP-compatible client (Cl
 
 | Tool | Description |
 | ---- | ----------- |
-| `list_tasks` | List tasks (optional `status` and `specialization` filters) |
+| `list_tasks` | List tasks (optional `status`, `specialization`, and `project_id` filters) |
 | `create_task` | Create a new task |
 | `get_task` | Get a single task by ID |
 | `update_task` | Partial update of a task |
@@ -217,6 +233,7 @@ The MCP server wraps the REST API as MCP tools, so any MCP-compatible client (Cl
 | `list_statuses` | List all valid statuses with metadata and descriptions |
 | `get_status_details` | Get details for a single status including allowed transitions |
 | `list_specializations` | List valid specializations |
+| `list_projects` | List distinct project_ids with task counts |
 | `get_task_stats` | Get task statistics by status and specialization |
 
 ### Local (stdio)
@@ -319,7 +336,7 @@ Changes to this file require restarting the backend.
 ## Database
 
 Single SQLite file (`board.db`) with two tables:
-- `tasks`: id, title, description, status, specialization, priority, blocked_by, metadata, created_at, updated_at
+- `tasks`: id, title, description, status, specialization, priority, blocked_by, metadata, project_id, created_at, updated_at
 - `messages`: id, user_id, text, response, status, created_at, updated_at (for Telegram integration)
 
 No migrations system — table schema is created on first run if it doesn't exist.
