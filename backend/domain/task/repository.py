@@ -58,6 +58,23 @@ class TaskRepository:
     rows = await cursor.fetchall()
     return [Task.from_row(r) for r in rows]
 
+  async def list_by_project(self, project_id: str) -> list[Task]:
+    """Fetch tasks by project_id."""
+    cursor = await self.db.execute(
+      "SELECT * FROM tasks WHERE project_id = ? ORDER BY priority DESC, created_at ASC",
+      (project_id,),
+    )
+    rows = await cursor.fetchall()
+    return [Task.from_row(r) for r in rows]
+
+  async def get_distinct_projects(self) -> list[dict]:
+    """Get distinct project_ids with task counts."""
+    cursor = await self.db.execute(
+      "SELECT project_id, COUNT(*) as task_count FROM tasks WHERE project_id IS NOT NULL GROUP BY project_id ORDER BY project_id"
+    )
+    rows = await cursor.fetchall()
+    return [{"project_id": row["project_id"], "task_count": row["task_count"]} for row in rows]
+
   async def search(self, query: str) -> list[Task]:
     """Search tasks by ID, title, description, or metadata (using SQL LIKE for efficiency)."""
     q_lower = query.lower()
@@ -115,8 +132,8 @@ class TaskRepository:
     """Persist a new task."""
     try:
       await self.db.execute(
-        """INSERT INTO tasks (id, title, description, status, specialization, priority, blocked_by, metadata, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        """INSERT INTO tasks (id, title, description, status, specialization, priority, blocked_by, metadata, created_at, updated_at, project_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
           task.id,
           task.title,
@@ -128,6 +145,7 @@ class TaskRepository:
           json.dumps(task.metadata),
           task.created_at,
           task.updated_at,
+          task.project_id,
         ),
       )
     except Exception as e:
@@ -141,7 +159,7 @@ class TaskRepository:
     await self.db.execute(
       """UPDATE tasks
                SET title = ?, description = ?, status = ?, specialization = ?,
-                   priority = ?, blocked_by = ?, metadata = ?, updated_at = ?
+                   priority = ?, blocked_by = ?, metadata = ?, updated_at = ?, project_id = ?
                WHERE id = ?""",
       (
         task.title,
@@ -152,6 +170,7 @@ class TaskRepository:
         json.dumps(task.blocked_by),
         json.dumps(task.metadata),
         task.updated_at,
+        task.project_id,
         task.id,
       ),
     )

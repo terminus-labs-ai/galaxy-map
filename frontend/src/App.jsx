@@ -570,6 +570,9 @@ function TaskCard({ task, allTasks, onOpenDetail }) {
       <div className="card-badges">
         <SpecBadge spec={task.specialization} />
         <BlockedIndicator task={task} allTasks={allTasks} />
+        {task.project_id && (
+          <span className="project-badge">{task.project_id}</span>
+        )}
       </div>
 
       {task.description && (
@@ -614,6 +617,8 @@ export default function App() {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [projectFilter, setProjectFilter] = useState("");
 
   // Fetch statuses once on mount and build columns
   useEffect(() => {
@@ -633,13 +638,21 @@ export default function App() {
     try {
       // Build status query from all available statuses (from columns)
       const statusQuery = columns.map((c) => c.key).join(",");
-      const data = await api(`/tasks?status=${statusQuery}`);
+      const projectParam = projectFilter ? `&project_id=${encodeURIComponent(projectFilter)}` : "";
+      const data = await api(`/tasks?status=${statusQuery}${projectParam}`);
+
+      // Fetch distinct projects
+      try {
+        const proj = await api("/tasks/projects");
+        setProjects(proj);
+      } catch {}
+
       setTasks(data);
       setError(null);
     } catch (err) {
       setError(err.message);
     }
-  }, [columns]);
+  }, [columns, projectFilter]);
 
   // Poll for task updates
   useEffect(() => {
@@ -716,6 +729,20 @@ export default function App() {
           />
           {isSearching && <div className="search-spinner">⟳</div>}
         </div>
+        {projects.length > 0 && (
+          <select
+            className="project-filter"
+            value={projectFilter}
+            onChange={(e) => setProjectFilter(e.target.value)}
+          >
+            <option value="">All projects</option>
+            {projects.map((p) => (
+              <option key={p.project_id} value={p.project_id}>
+                {p.project_id} ({p.task_count})
+              </option>
+            ))}
+          </select>
+        )}
         <button className="btn btn-add" onClick={() => setIsCreateModalOpen(true)}>
           + New Task
         </button>

@@ -40,18 +40,21 @@ def _api(path: str) -> str:
 
 
 @mcp.tool()
-async def list_tasks(status: Optional[str] = None, specialization: Optional[str] = None) -> list[dict]:
+async def list_tasks(status: Optional[str] = None, specialization: Optional[str] = None, project_id: Optional[str] = None) -> list[dict]:
     """List tasks on the board.
 
     Args:
         status: Filter by status. Use list_statuses() to see valid values.
         specialization: Filter by specialization (general, coding, planning, research).
+        project_id: Filter by project slug (e.g. "galaxy-map-v2").
     """
     params = {}
     if status:
         params["status"] = status
     if specialization:
         params["specialization"] = specialization
+    if project_id:
+        params["project_id"] = project_id
     url = _api("/tasks")
     logger.debug("list_tasks -> GET %s params=%s", url, params)
     async with httpx.AsyncClient() as client:
@@ -104,6 +107,7 @@ async def create_task(
     blocked_by: Optional[list[str]] = None,
     metadata: Optional[dict] = None,
     id: Optional[str] = None,
+    project_id: Optional[str] = None,
 ) -> dict:
     """Create a new task.
 
@@ -116,6 +120,7 @@ async def create_task(
         blocked_by: List of task IDs this task depends on.
         metadata: Arbitrary JSON metadata for agent context.
         id: Optional client-provided task ID. If omitted, the server generates one. Rejects duplicates (409).
+        project_id: Optional project slug to group related tasks (e.g. "galaxy-map-v2").
     """
     body = {
         "title": title,
@@ -128,6 +133,8 @@ async def create_task(
     }
     if id is not None:
         body["id"] = id
+    if project_id is not None:
+        body["project_id"] = project_id
     url = _api("/tasks")
     logger.debug("create_task -> POST %s body=%s", url, body)
     async with httpx.AsyncClient() as client:
@@ -171,6 +178,7 @@ async def update_task(
     priority: Optional[int] = None,
     blocked_by: Optional[list[str]] = None,
     metadata: Optional[dict] = None,
+    project_id: Optional[str] = None,
 ) -> dict:
     """Update a task (partial update — only provided fields are changed).
 
@@ -183,6 +191,7 @@ async def update_task(
         priority: New priority.
         blocked_by: New list of blocker task IDs (replaces existing list).
         metadata: New metadata dict (replaces existing metadata).
+        project_id: New project slug (set to null to remove from project).
     """
     body = {}
     if title is not None:
@@ -199,6 +208,8 @@ async def update_task(
         body["blocked_by"] = blocked_by
     if metadata is not None:
         body["metadata"] = metadata
+    if project_id is not None:
+        body["project_id"] = project_id
     url = _api(f"/tasks/{task_id}")
     logger.debug("update_task -> PATCH %s body=%s", url, body)
     async with httpx.AsyncClient() as client:
@@ -283,6 +294,26 @@ async def delete_task(task_id: str) -> str:
 
 
 @mcp.tool()
+async def list_projects() -> list[dict]:
+    """List distinct project slugs with task counts.
+
+    Returns a list of objects with project_id and task_count.
+    Only includes tasks that have a project_id set.
+    """
+    url = _api("/tasks/projects")
+    logger.debug("list_projects -> GET %s", url)
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.get(url)
+            logger.debug("list_projects <- %s (%d bytes)", resp.status_code, len(resp.content))
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as e:
+            logger.error("list_projects failed: %s", e)
+            raise
+
+
+@mcp.tool()
 async def list_statuses() -> list[dict]:
     """List all valid task statuses with metadata including descriptions.
 
@@ -354,6 +385,7 @@ async def get_task_stats(
     Args:
         status: Filter by status. Use list_statuses() to see valid values.
         specialization: Filter by specialization (general, coding, planning, research).
+        project_id: Filter by project slug (e.g. "galaxy-map-v2").
 
     Returns:
         dict with keys:

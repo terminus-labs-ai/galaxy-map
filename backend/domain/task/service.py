@@ -27,6 +27,7 @@ class TaskService:
         blocked_by: list[str] | None = None,
         metadata: dict | None = None,
         task_id: str | None = None,
+        project_id: str | None = None,
     ) -> Task:
         """Create a new task with validation and duplicate detection."""
         self.validator.validate_status(status)
@@ -54,6 +55,7 @@ class TaskService:
             priority=priority,
             blocked_by=blocked_by,
             metadata=metadata,
+            project_id=project_id,
         )
 
         return await self.repo.create(task)
@@ -97,6 +99,7 @@ class TaskService:
         priority: int | None = None,
         blocked_by: list[str] | None = None,
         metadata: dict | None = None,
+        project_id: str | None = "___UNSET___",
     ) -> Task:
         """Update a task (partial update)."""
         task = await self.get_task(task_id)
@@ -118,6 +121,8 @@ class TaskService:
             task.blocked_by = blocked_by
         if metadata is not None:
             task.metadata = metadata
+        if project_id != "___UNSET___":
+            task.project_id = project_id
 
         return await self.repo.update(task)
 
@@ -154,6 +159,10 @@ class TaskService:
         """Delete a task."""
         task = await self.get_task(task_id)  # Ensure it exists
         await self.repo.delete(task_id)
+
+    async def list_projects(self) -> list[dict]:
+        """Get distinct project_ids with task counts."""
+        return await self.repo.get_distinct_projects()
 
     async def _check_duplicate_title(self, title: str):
         """Check for duplicate task titles based on similarity threshold."""

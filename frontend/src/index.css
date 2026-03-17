@@ -796,3 +796,32 @@ body {
   color: var(--text-muted);
   font-size: 14px;
 }
+
+/* Project badge on task cards */
+.project-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  font-family: var(--font-mono);
+}
+
+/* Project filter dropdown in header */
+.project-filter {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  min-width: 140px;
+}
+
+.project-filter:focus {
+  outline: none;
+  border-color: var(--accent);
+}

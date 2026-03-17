@@ -14,12 +14,17 @@ router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 async def list_tasks(
   status: str | None = Query(None),
   specialization: str | None = Query(None),
+  project_id: str | None = Query(None),
 ):
   """List tasks, optionally filtered by status and/or specialization."""
   db = await get_db()
   service = TaskService(db)
 
   tasks = await service.list_tasks(status, specialization)
+
+  # Filter by project_id if specified
+  if project_id is not None:
+    tasks = [t for t in tasks if t.project_id == project_id]
 
   # Compute is_blocked for all tasks
   all_tasks = await service.repo.get_all()
@@ -45,6 +50,18 @@ async def search_tasks(q: str = Query(..., min_length=1)):
   return result
 
 
+@router.get("/projects", response_model=list[dict])
+async def list_projects():
+  """List distinct project_ids with task counts."""
+  db = await get_db()
+  service = TaskService(db)
+
+  projects = await service.list_projects()
+
+  await db.close()
+  return projects
+
+
 @router.post("", response_model=TaskResponse, status_code=201)
 async def create_task(task: TaskCreate):
   """Create a new task."""
@@ -61,6 +78,7 @@ async def create_task(task: TaskCreate):
       blocked_by=task.blocked_by,
       metadata=task.metadata,
       task_id=task.id,
+      project_id=task.project_id,
     )
     print(f"Task created! {created}")
   except Exception as e:
@@ -100,6 +118,7 @@ async def update_task(task_id: str, updates: TaskUpdate):
     priority=updates.priority,
     blocked_by=updates.blocked_by,
     metadata=updates.metadata,
+    project_id=updates.project_id if "project_id" in updates.model_fields_set else "___UNSET___",
   )
 
   all_tasks = await service.repo.get_all()

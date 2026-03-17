@@ -14,6 +14,7 @@ class TaskCreate(BaseModel):
     priority: int = 0
     blocked_by: list[str] = Field(default_factory=list)
     metadata: dict = Field(default_factory=dict)
+    project_id: Optional[str] = None
 
 
 class TaskUpdate(BaseModel):
@@ -25,6 +26,7 @@ class TaskUpdate(BaseModel):
     priority: Optional[int] = None
     blocked_by: Optional[list[str]] = None
     metadata: Optional[dict] = None
+    project_id: Optional[str] = None
 
 
 class TaskResponse(BaseModel):
@@ -37,6 +39,7 @@ class TaskResponse(BaseModel):
     priority: int
     blocked_by: list[str]
     is_blocked: bool
+    project_id: Optional[str] = None
     metadata: dict
     created_at: str
     updated_at: str
