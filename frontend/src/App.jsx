@@ -331,7 +331,7 @@ function SearchResultsModal({ searchQuery, searchResults, allTasks, onClose, onO
   );
 }
 
-function TaskDetailModal({ taskId, allTasks, onClose, onUpdate, onDelete, columns }) {
+function TaskDetailModal({ taskId, allTasks, projects, onClose, onUpdate, onDelete, columns }) {
   const task = allTasks.find((t) => t.id === taskId);
   const [draft, setDraft] = useState(null);
 
@@ -345,6 +345,7 @@ function TaskDetailModal({ taskId, allTasks, onClose, onUpdate, onDelete, column
         priority: task.priority,
         blocked_by: [...task.blocked_by],
         metadata: task.metadata ? JSON.parse(JSON.stringify(task.metadata)) : {},
+        project_id: task.project_id || "",
       });
     }
   }, [taskId, task?.updated_at]);
@@ -366,7 +367,8 @@ function TaskDetailModal({ taskId, allTasks, onClose, onUpdate, onDelete, column
     draft.specialization !== task.specialization ||
     draft.priority !== task.priority ||
     JSON.stringify(draft.blocked_by) !== JSON.stringify(task.blocked_by) ||
-    JSON.stringify(draft.metadata) !== JSON.stringify(task.metadata || {});
+    JSON.stringify(draft.metadata) !== JSON.stringify(task.metadata || {}) ||
+    draft.project_id !== (task.project_id || "");
 
   function tryClose() {
     if (isDirty) {
@@ -387,6 +389,8 @@ function TaskDetailModal({ taskId, allTasks, onClose, onUpdate, onDelete, column
       fields.blocked_by = draft.blocked_by;
     if (JSON.stringify(draft.metadata) !== JSON.stringify(task.metadata || {}))
       fields.metadata = draft.metadata;
+    if (draft.project_id !== (task.project_id || ""))
+      fields.project_id = draft.project_id || null;
     if (Object.keys(fields).length > 0) onUpdate(task.id, fields);
   }
 
@@ -470,6 +474,34 @@ function TaskDetailModal({ taskId, allTasks, onClose, onUpdate, onDelete, column
                   setField("priority", parseInt(e.target.value, 10) || 0)
                 }
               />
+            </div>
+          </div>
+
+          {/* Project */}
+          <div className="modal-field">
+            <label className="modal-label">Project</label>
+            <div className="project-editor">
+              <input
+                className="modal-input"
+                list="project-options"
+                placeholder="No project"
+                value={draft.project_id}
+                onChange={(e) => setField("project_id", e.target.value)}
+              />
+              <datalist id="project-options">
+                {(projects || []).map((p) => (
+                  <option key={p.project_id} value={p.project_id} />
+                ))}
+              </datalist>
+              {draft.project_id && (
+                <button
+                  className="project-clear"
+                  onClick={() => setField("project_id", "")}
+                  title="Remove from project"
+                >
+                  ×
+                </button>
+              )}
             </div>
           </div>
 
@@ -783,6 +815,7 @@ export default function App() {
         <TaskDetailModal
           taskId={selectedTaskId}
           allTasks={tasks}
+          projects={projects}
           onClose={() => setSelectedTaskId(null)}
           onUpdate={updateTask}
           onDelete={deleteTask}

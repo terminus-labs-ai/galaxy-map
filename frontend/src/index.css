@@ -825,3 +825,31 @@ body {
   outline: none;
   border-color: var(--accent);
 }
+
+/* Project editor in task detail modal */
+.project-editor {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.project-editor .modal-input {
+  flex: 1;
+}
+
+.project-clear {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 8px;
+  line-height: 1;
+}
+
+.project-clear:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
