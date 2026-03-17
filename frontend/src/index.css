@@ -828,14 +828,20 @@ body {
 
 /* Project editor in task detail modal */
 .project-editor {
-  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 100%;
+}
+
+.project-editor .input.select {
+  flex: 1;
+  width: 100%;
 }
 
 .project-editor .modal-input {
   flex: 1;
+  width: 100%;
 }
 
 .project-clear {
@@ -845,8 +851,9 @@ body {
   color: var(--text-muted);
   cursor: pointer;
   font-size: 16px;
-  padding: 2px 8px;
+  padding: 4px 8px;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .project-clear:hover {

@@ -331,6 +331,58 @@ function SearchResultsModal({ searchQuery, searchResults, allTasks, onClose, onO
   );
 }
 
+function ProjectEditor({ value, projects, onChange }) {
+  const [isCustom, setIsCustom] = useState(false);
+
+  const existingSlugs = projects.map((p) => p.project_id);
+  const isNewValue = value && !existingSlugs.includes(value);
+
+  if (isCustom || isNewValue) {
+    return (
+      <div className="project-editor">
+        <input
+          autoFocus
+          className="modal-input"
+          placeholder="new-project-slug"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <button
+          className="project-clear"
+          onClick={() => { onChange(""); setIsCustom(false); }}
+          title="Clear"
+        >
+          ×
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="project-editor">
+      <select
+        className="input select"
+        value={value}
+        onChange={(e) => {
+          if (e.target.value === "__new__") {
+            setIsCustom(true);
+          } else {
+            onChange(e.target.value);
+          }
+        }}
+      >
+        <option value="">No project</option>
+        {projects.map((p) => (
+          <option key={p.project_id} value={p.project_id}>
+            {p.project_id} ({p.task_count})
+          </option>
+        ))}
+        <option value="__new__">+ New project...</option>
+      </select>
+    </div>
+  );
+}
+
 function TaskDetailModal({ taskId, allTasks, projects, onClose, onUpdate, onDelete, columns }) {
   const task = allTasks.find((t) => t.id === taskId);
   const [draft, setDraft] = useState(null);
@@ -480,29 +532,11 @@ function TaskDetailModal({ taskId, allTasks, projects, onClose, onUpdate, onDele
           {/* Project */}
           <div className="modal-field">
             <label className="modal-label">Project</label>
-            <div className="project-editor">
-              <input
-                className="modal-input"
-                list="project-options"
-                placeholder="No project"
-                value={draft.project_id}
-                onChange={(e) => setField("project_id", e.target.value)}
-              />
-              <datalist id="project-options">
-                {(projects || []).map((p) => (
-                  <option key={p.project_id} value={p.project_id} />
-                ))}
-              </datalist>
-              {draft.project_id && (
-                <button
-                  className="project-clear"
-                  onClick={() => setField("project_id", "")}
-                  title="Remove from project"
-                >
-                  ×
-                </button>
-              )}
-            </div>
+            <ProjectEditor
+              value={draft.project_id}
+              projects={projects || []}
+              onChange={(val) => setField("project_id", val)}
+            />
           </div>
 
           {/* Blockers */}
