@@ -68,21 +68,17 @@ async def create_task(task: TaskCreate):
   db = await get_db()
   service = TaskService(db)
 
-  try:
-    created = await service.create_task(
-      title=task.title,
-      description=task.description,
-      status=task.status,
-      specialization=task.specialization,
-      priority=task.priority,
-      blocked_by=task.blocked_by,
-      metadata=task.metadata,
-      task_id=task.id,
-      project_id=task.project_id,
-    )
-    print(f"Task created! {created}")
-  except Exception as e:
-    print(f"Error creating task: {e}")
+  created = await service.create_task(
+    title=task.title,
+    description=task.description,
+    status=task.status,
+    specialization=task.specialization,
+    priority=task.priority,
+    blocked_by=task.blocked_by,
+    metadata=task.metadata,
+    task_id=task.id,
+    project_id=task.project_id,
+  )
 
   result = created.to_dict(is_blocked=False)
   await db.close()
