@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import TaskCount from "./components/TaskCount";
 import {
   DndContext,
   MouseSensor,
@@ -908,6 +909,7 @@ export default function App() {
 
       {error && <div className="error-banner">API error: {error}</div>}
 
+      <TaskCount tasks={filteredTasks} />
       <div className="board">
         {columns.map((col) => (
           <Column
