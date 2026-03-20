@@ -3,10 +3,13 @@
 import uuid
 from datetime import datetime, timezone
 import aiosqlite
+import json
 from core import Config, TaskNotFound, DuplicateTask, TaskNotQueued, TaskBlocked
 from .model import Task
 from .repository import TaskRepository
 from .validator import TaskValidator
+from .history_model import TaskHistory
+from .history_repository import TaskHistoryRepository
 
 
 class TaskService:
@@ -15,6 +18,7 @@ class TaskService:
     def __init__(self, db: aiosqlite.Connection):
         self.db = db
         self.repo = TaskRepository(db)
+        self.history_repo = TaskHistoryRepository(db)
         self.validator = TaskValidator()
 
     async def create_task(
@@ -100,31 +104,58 @@ class TaskService:
         blocked_by: list[str] | None = None,
         metadata: dict | None = None,
         project_id: str | None = "___UNSET___",
+        changed_by: str = "system",
     ) -> Task:
         """Update a task (partial update)."""
         task = await self.get_task(task_id)
-
-        if title is not None:
+        
+        # Track changes for history
+        changes = {}
+        
+        if title is not None and title != task.title:
+            changes["title"] = {"old": task.title, "new": title}
             task.title = title
-        if description is not None:
+        if description is not None and description != task.description:
+            changes["description"] = {"old": task.description, "new": description}
             task.description = description
         if status is not None:
             self.validator.validate_status(status)
+            if status != task.status:
+                changes["status"] = {"old": task.status, "new": status}
             task.status = status
-        if specialization is not None:
-            self.validator.validate_specialization(specialization)
+        if specialization is not None and specialization != task.specialization:
+            changes["specialization"] = {"old": task.specialization, "new": specialization}
             task.specialization = specialization
-        if priority is not None:
+        if priority is not None and priority != task.priority:
+            changes["priority"] = {"old": task.priority, "new": priority}
             task.priority = priority
         if blocked_by is not None:
             self.validator.validate_blocked_by(blocked_by, task_id)
+            if blocked_by != task.blocked_by:
+                changes["blocked_by"] = {"old": task.blocked_by, "new": blocked_by}
             task.blocked_by = blocked_by
         if metadata is not None:
+            changes["metadata"] = {"old": task.metadata, "new": metadata}
             task.metadata = metadata
-        if project_id != "___UNSET___":
+        if project_id != "___UNSET___" and project_id != task.project_id:
+            changes["project_id"] = {"old": task.project_id, "new": project_id}
             task.project_id = project_id
 
-        return await self.repo.update(task)
+        result = await self.repo.update(task)
+        
+        # Create history entries for changes
+        if changes:
+            for field_name, change in changes.items():
+                await self._create_history_entry(
+                    task_id=task_id,
+                    event_type="metadata_update",
+                    old_value=change["old"],
+                    new_value=change["new"],
+                    changed_by=changed_by,
+                    details={"field": field_name},
+                )
+        
+        return result
 
     async def claim_task(self, task_id: str, claimed_by: str) -> Task:
         """Atomically claim a queued, unblocked task."""
@@ -138,14 +169,37 @@ class TaskService:
         if task.is_blocked(all_tasks):
             raise TaskBlocked()
 
+        old_status = task.status
         task.status = "in_progress"
+        old_metadata = task.metadata.copy()
         task.metadata["claimed_by"] = claimed_by
 
-        return await self.repo.update(task)
+        result = await self.repo.update(task)
+        
+        # Create history entries
+        await self._create_history_entry(
+            task_id=task_id,
+            event_type="status_change",
+            old_value=old_status,
+            new_value="in_progress",
+            changed_by=claimed_by,
+            details={},
+        )
+        await self._create_history_entry(
+            task_id=task_id,
+            event_type="assignment",
+            old_value=None,
+            new_value=claimed_by,
+            changed_by=claimed_by,
+            details={"field": "claimed_by"},
+        )
+        
+        return result
 
-    async def merge_metadata(self, task_id: str, patch: dict) -> Task:
+    async def merge_metadata(self, task_id: str, patch: dict, changed_by: str = "system") -> Task:
         """Merge keys into task metadata."""
         task = await self.get_task(task_id)
+        old_metadata = task.metadata.copy()
 
         for key, value in patch.items():
             if value is None:
@@ -153,7 +207,40 @@ class TaskService:
             else:
                 task.metadata[key] = value
 
-        return await self.repo.update(task)
+        result = await self.repo.update(task)
+        
+        # Create history entry for metadata merge
+        await self._create_history_entry(
+            task_id=task_id,
+            event_type="metadata_update",
+            old_value=old_metadata,
+            new_value=task.metadata,
+            changed_by=changed_by,
+            details={"patch": patch},
+        )
+        
+        return result
+
+    async def _create_history_entry(
+        self,
+        task_id: str,
+        event_type: str,
+        old_value: any = None,
+        new_value: any = None,
+        changed_by: str = "system",
+        details: dict | None = None,
+    ) -> TaskHistory:
+        """Create a history entry for a task event."""
+        history = TaskHistory(
+            id=uuid.uuid4().hex[:12],
+            task_id=task_id,
+            event_type=event_type,
+            old_value=json.dumps(old_value) if old_value is not None else None,
+            new_value=json.dumps(new_value) if new_value is not None else None,
+            changed_by=changed_by,
+            details=details or {},
+        )
+        return await self.history_repo.create(history)
 
     async def delete_task(self, task_id: str):
         """Delete a task."""
@@ -163,6 +250,13 @@ class TaskService:
     async def list_projects(self) -> list[dict]:
         """Get distinct project_ids with task counts."""
         return await self.repo.get_distinct_projects()
+
+    async def get_task_history(
+        self, task_id: str, limit: int = 100, offset: int = 0
+    ) -> list[dict]:
+        """Get task history entries."""
+        history = await self.history_repo.get_by_task_id(task_id, limit, offset)
+        return [h.to_dict() for h in history]
 
     async def _check_duplicate_title(self, title: str):
         """Check for duplicate task titles based on similarity threshold."""

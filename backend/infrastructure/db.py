@@ -83,5 +83,22 @@ async def init_db():
     await db.execute("CREATE INDEX IF NOT EXISTS idx_messages_status ON messages(status)")
     await db.execute("CREATE INDEX IF NOT EXISTS idx_messages_user_id ON messages(user_id)")
 
+    # Task history/audit log table
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS task_history (
+            id              TEXT PRIMARY KEY,
+            task_id         TEXT NOT NULL,
+            event_type      TEXT NOT NULL,
+            old_value       TEXT DEFAULT NULL,
+            new_value       TEXT DEFAULT NULL,
+            changed_by      TEXT NOT NULL DEFAULT 'system',
+            timestamp       TEXT NOT NULL,
+            details         TEXT DEFAULT NULL,
+            FOREIGN KEY (task_id) REFERENCES tasks(id)
+        )
+    """)
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_task_history_task_id ON task_history(task_id)")
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_task_history_timestamp ON task_history(timestamp)")
+
     await db.commit()
     await db.close()

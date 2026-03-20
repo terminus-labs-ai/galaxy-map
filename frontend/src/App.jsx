@@ -9,6 +9,8 @@ import {
   DragOverlay,
   defaultDropAnimationSideEffects,
 } from "@dnd-kit/core";
+import { useTaskHistory } from "./hooks/useTaskHistory";
+import { TaskHistoryTimeline } from "./components/TaskHistoryTimeline";
 
 const API = "/api";
 const POLL_INTERVAL = 3000;
@@ -396,6 +398,10 @@ function ProjectEditor({ value, projects, onChange }) {
 function TaskDetailModal({ taskId, allTasks, projects, onClose, onUpdate, onDelete, columns }) {
   const task = allTasks.find((t) => t.id === taskId);
   const [draft, setDraft] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
+  
+  // Fetch task history
+  const { history: taskHistory, loading: historyLoading, error: historyError, hasMore, loadMore } = useTaskHistory(taskId);
 
   // Initialize draft when task changes
   useEffect(() => {
@@ -588,6 +594,28 @@ function TaskDetailModal({ taskId, allTasks, projects, onClose, onUpdate, onDele
           <div className="modal-field">
             <label className="modal-label">Metadata</label>
             <MetadataEditor value={draft.metadata} onChange={(val) => setField("metadata", val)} />
+          </div>
+
+          {/* History Section */}
+          <div className="modal-field">
+            <div className="modal-field-header" onClick={() => setShowHistory(!showHistory)}>
+              <label className="modal-label">History</label>
+              <button className="history-toggle-btn" onClick={(e) => { e.stopPropagation(); setShowHistory(!showHistory); }}>
+                {showHistory ? "Hide" : "Show"}
+              </button>
+            </div>
+            {showHistory && (
+              <div className="history-section">
+                <TaskHistoryTimeline
+                  history={taskHistory}
+                  loading={historyLoading}
+                  error={historyError}
+                  hasMore={hasMore}
+                  onLoadMore={loadMore}
+                  compact={false}
+                />
+              </div>
+            )}
           </div>
         </div>
 
