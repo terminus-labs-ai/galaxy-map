@@ -860,3 +860,48 @@ body {
   color: var(--danger);
   border-color: var(--danger);
 }
+
+/* ── Status Badge ────────────────────────────────────────────────────── */
+
+.status-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid;
+  opacity: 0.8;
+}
+
+.status-badge.todo {
+  color: var(--text);
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+.status-badge.in-progress {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.status-badge.review {
+  color: var(--warning);
+  border-color: var(--warning);
+  background: var(--warning-dim);
+}
+
+.status-badge.done {
+  color: #34d399;
+  border-color: #34d399;
+  background: rgba(52, 211, 153, 0.1);
+}
+
+.status-badge.cancelled {
+  color: var(--text-muted);
+  border-color: var(--border);
+  background: var(--surface);
+  opacity: 0.6;
+}
