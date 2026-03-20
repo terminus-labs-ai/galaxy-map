@@ -661,7 +661,10 @@ function TaskCard({ task, allTasks, onOpenDetail }) {
         <p className="card-desc-preview">{truncate(task.description)}</p>
       )}
 
-      <div className="card-meta">{timeAgo(task.updated_at)}</div>
+      <div className="card-meta">
+        <div>Updated: {timeAgo(task.updated_at)}</div>
+        <div>Created: {timeAgo(task.created_at)}</div>
+      </div>
     </div>
   );
 }
