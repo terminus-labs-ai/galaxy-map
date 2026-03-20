@@ -41,7 +41,7 @@ function truncate(text, maxLen = 120) {
   return text.slice(0, maxLen).trimEnd() + "…";
 }
 
-// ── Components ───────────────────────────────────────────────────────
+// ── Components ─────────────────────────────────────────────────────────
 
 function SpecBadge({ spec }) {
   return (
@@ -685,6 +685,7 @@ export default function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [projects, setProjects] = useState([]);
   const [projectFilter, setProjectFilter] = useState("");
+  const [localSearchQuery, setLocalSearchQuery] = useState("");
 
   // Fetch statuses once on mount and build columns
   useEffect(() => {
@@ -772,6 +773,23 @@ export default function App() {
     }
   };
 
+  const handleLocalSearchChange = (e) => {
+    setLocalSearchQuery(e.target.value);
+  };
+
+  const handleLocalSearchClear = () => {
+    setLocalSearchQuery("");
+  };
+
+  // Filter tasks by local search query (case-insensitive match on title and description)
+  const filteredTasks = tasks.filter((task) => {
+    if (!localSearchQuery.trim()) return true;
+    const query = localSearchQuery.toLowerCase();
+    const titleMatch = task.title.toLowerCase().includes(query);
+    const descMatch = (task.description || "").toLowerCase().includes(query);
+    return titleMatch || descMatch;
+  });
+
   return (
     <div className="app">
       <header className="header">
@@ -814,6 +832,27 @@ export default function App() {
         </button>
       </header>
 
+      {/* Local Search Filter - positioned before status columns */}
+      <div className="header-local-search">
+        <input
+          type="text"
+          className="input search-input inline"
+          placeholder="Filter tasks..."
+          value={localSearchQuery}
+          onChange={handleLocalSearchChange}
+          style={{ width: "200px" }}
+        />
+        {localSearchQuery && (
+          <button
+            className="btn btn-sm"
+            onClick={handleLocalSearchClear}
+            title="Clear filter"
+          >
+            ×
+          </button>
+        )}
+      </div>
+
       {error && <div className="error-banner">API error: {error}</div>}
 
       <div className="board">
@@ -821,8 +860,8 @@ export default function App() {
           <Column
             key={col.key}
             column={col}
-            tasks={tasks.filter((t) => t.status === col.key)}
-            allTasks={tasks}
+            tasks={filteredTasks.filter((t) => t.status === col.key)}
+            allTasks={filteredTasks}
             onOpenDetail={setSelectedTaskId}
           />
         ))}
