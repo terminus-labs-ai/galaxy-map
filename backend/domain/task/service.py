@@ -1,9 +1,9 @@
 """Task service (business logic layer)."""
 
 import uuid
+import json
 from datetime import datetime, timezone
 import aiosqlite
-import json
 from core import Config, TaskNotFound, DuplicateTask, TaskNotQueued, TaskBlocked
 from .model import Task
 from .repository import TaskRepository
@@ -124,6 +124,7 @@ class TaskService:
                 changes["status"] = {"old": task.status, "new": status}
             task.status = status
         if specialization is not None and specialization != task.specialization:
+            self.validator.validate_specialization(specialization)
             changes["specialization"] = {"old": task.specialization, "new": specialization}
             task.specialization = specialization
         if priority is not None and priority != task.priority:
@@ -146,9 +147,15 @@ class TaskService:
         # Create history entries for changes
         if changes:
             for field_name, change in changes.items():
+                if field_name == "status":
+                    event_type = "status_change"
+                elif field_name == "specialization":
+                    event_type = "assignment"
+                else:
+                    event_type = "metadata_update"
                 await self._create_history_entry(
                     task_id=task_id,
-                    event_type="metadata_update",
+                    event_type=event_type,
                     old_value=change["old"],
                     new_value=change["new"],
                     changed_by=changed_by,
@@ -171,7 +178,7 @@ class TaskService:
 
         old_status = task.status
         task.status = "in_progress"
-        old_metadata = task.metadata.copy()
+
         task.metadata["claimed_by"] = claimed_by
 
         result = await self.repo.update(task)

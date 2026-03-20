@@ -1,7 +1,6 @@
 """Task history repository (data access layer)."""
 
-import uuid
-from datetime import datetime, timezone
+import json
 import aiosqlite
 from .history_model import TaskHistory
 
@@ -26,7 +25,7 @@ class TaskHistoryRepository:
                     history.new_value,
                     history.changed_by,
                     history.timestamp,
-                    history.details if history.details else None,
+                    json.dumps(history.details) if history.details else None,
                 ),
             )
             await self.db.commit()
