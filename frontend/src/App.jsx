@@ -671,52 +671,46 @@ function TaskCard({ task, allTasks, onOpenDetail }) {
 }
 
 function Column({ column, tasks, allTasks, onOpenDetail }) {
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
-    <div className="column">
+    <div className="column" style={{ minWidth: collapsed ? "60px" : "" }}>
       <div className="column-header" style={{ borderTopColor: column.color }}>
+        <button
+          className="collapse-toggle"
+          onClick={() => setCollapsed(!collapsed)}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontSize: "12px",
+            color: "#71717a",
+            marginRight: "6px",
+            padding: "0",
+            lineHeight: "1",
+          }}
+          title={collapsed ? "Expand column" : "Collapse column"}
+        >
+          {collapsed ? "▶" : "▼"}
+        </button>
         <span className="column-title">{column.label}</span>
         <span className="column-count">{tasks.length}</span>
       </div>
-      <div className="column-body">
-        {tasks.map((t) => (
-          <TaskCard
-            key={t.id}
-            task={t}
-            allTasks={allTasks}
-            onOpenDetail={onOpenDetail}
-          />
-        ))}
-      </div>
+      {!collapsed && (
+        <div className="column-body">
+          {tasks.map((t) => (
+            <TaskCard
+              key={t.id}
+              task={t}
+              allTasks={allTasks}
+              onOpenDetail={onOpenDetail}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
-
-// ── App ──────────────────────────────────────────────────────────────────
-
-export default function App() {
-  // Drag state
-  const [activeId, setActiveId] = useState(null);
-  const [tasks, setTasks] = useState([]);
-  const [columns, setColumns] = useState([]);
-  const [error, setError] = useState(null);
-  const [selectedTaskId, setSelectedTaskId] = useState(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const [projects, setProjects] = useState([]);
-  const [projectFilter, setProjectFilter] = useState("");
-
-  // Create sensors for drag and drop
-  const sensors = useSensors(
-    useSensor(MouseSensor, {
-      activationConstraint: {
-        distance: 8, // Minimum distance to start drag
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
         delay: 250,
         tolerance: 5,
       },
