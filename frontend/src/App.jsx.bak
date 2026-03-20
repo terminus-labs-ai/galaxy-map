@@ -711,11 +711,6 @@ function Column({ column, tasks, allTasks, onOpenDetail }) {
     </div>
   );
 }
-
-function App() {
-  const [localSearchQuery, setLocalSearchQuery] = useState("");
-  const [selectedPriority, setSelectedPriority] = useState(0);
-
         delay: 250,
         tolerance: 5,
       },
@@ -835,9 +830,6 @@ function App() {
 
   // Filter tasks by local search query (case-insensitive match on title and description)
   const filteredTasks = tasks.filter((task) => {
-    // Check priority filter
-    if (selectedPriority !== 0 && task.priority !== selectedPriority) return false;
-    // Check local search query
     if (!localSearchQuery.trim()) return true;
     const query = localSearchQuery.toLowerCase();
     const titleMatch = task.title.toLowerCase().includes(query);
