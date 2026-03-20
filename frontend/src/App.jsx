@@ -1,4 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
+import {
+  DndContext,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+} from "@dnd-kit/core";
 
 const API = "/api";
 const POLL_INTERVAL = 3000;
@@ -674,6 +683,8 @@ function Column({ column, tasks, allTasks, onOpenDetail }) {
 // ── App ──────────────────────────────────────────────────────────────────
 
 export default function App() {
+  // Drag state
+  const [activeId, setActiveId] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [columns, setColumns] = useState([]);
   const [error, setError] = useState(null);
@@ -685,6 +696,21 @@ export default function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [projects, setProjects] = useState([]);
   const [projectFilter, setProjectFilter] = useState("");
+
+  // Create sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 8, // Minimum distance to start drag
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    })
+  );
   const [localSearchQuery, setLocalSearchQuery] = useState("");
 
   // Fetch statuses once on mount and build columns
@@ -781,6 +807,22 @@ export default function App() {
     setLocalSearchQuery("");
   };
 
+  const handleDragStart = (event) => {
+    setActiveId(event.active.id);
+  };
+
+  const handleDragOver = (event) => {
+    // Handle drag over for potential drop animations
+  };
+
+  const handleDrop = (event) => {
+    setActiveId(null);
+  };
+
+  const handleDragEnd = (event) => {
+    setActiveId(null);
+  };
+
   // Filter tasks by local search query (case-insensitive match on title and description)
   const filteredTasks = tasks.filter((task) => {
     if (!localSearchQuery.trim()) return true;
@@ -791,7 +833,8 @@ export default function App() {
   });
 
   return (
-    <div className="app">
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDrop={handleDrop}>
+      <div className="app">
       <header className="header">
         <div className="header-left">
           <h1 className="logo">Galaxy Map</h1>
@@ -895,6 +938,29 @@ export default function App() {
           columns={columns}
         />
       )}
-    </div>
+      </div>
+
+      <DragOverlay>
+        {activeId && (
+          (() => {
+            const activeTask = tasks.find((t) => t.id === activeId);
+            return activeTask ? (
+              <div className="card card-dragging">
+                <div className="card-header">
+                  <div className="card-title">{activeTask.title}</div>
+                </div>
+                <div className="card-badges">
+                  <SpecBadge spec={activeTask.specialization} />
+                  <BlockedIndicator task={activeTask} allTasks={tasks} />
+                </div>
+                {activeTask.description && (
+                  <p className="card-desc-preview">{truncate(activeTask.description)}</p>
+                )}
+              </div>
+            ) : null;
+          })()
+        )}
+      </DragOverlay>
+    </DndContext>
   );
 }
