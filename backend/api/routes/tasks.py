@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Query
 from infrastructure import get_db
 from domain import Task, TaskService
-from api.schemas import TaskCreate, TaskUpdate, TaskResponse
+from api.schemas import TaskCreate, TaskUpdate, TaskResponse, TaskHistoryResponse
 from core import Config
 
 
@@ -159,3 +159,19 @@ async def delete_task(task_id: str):
 
   await service.delete_task(task_id)
   await db.close()
+
+
+@router.get("/{task_id}/history", response_model=list[TaskHistoryResponse])
+async def get_task_history(
+    task_id: str,
+    limit: int = Query(100, ge=1, le=1000, description="Max number of history entries to return"),
+    offset: int = Query(0, ge=0, description="Number of entries to skip"),
+):
+  """Get the full audit trail for a task, ordered by timestamp descending."""
+  db = await get_db()
+  service = TaskService(db)
+
+  history = await service.get_task_history(task_id, limit, offset)
+
+  await db.close()
+  return history

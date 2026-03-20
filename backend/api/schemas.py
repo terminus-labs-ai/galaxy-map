@@ -77,3 +77,15 @@ class MessageResponse(BaseModel):
     status: str
     created_at: str
     updated_at: str
+
+
+class TaskHistoryResponse(BaseModel):
+    """Task history entry response."""
+    id: str
+    task_id: str
+    event_type: str
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    changed_by: str
+    timestamp: str
+    details: dict
