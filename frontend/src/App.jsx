@@ -633,9 +633,16 @@ function TaskDetailModal({ taskId, allTasks, projects, onClose, onUpdate, onDele
 }
 
 function TaskCard({ task, allTasks, onOpenDetail }) {
+  const descriptionPreview = task.description
+    ? task.description.length > 100
+      ? task.description.slice(0, 100).trimEnd() + "..."
+      : task.description
+    : "";
+
   return (
     <div
       className={`card ${task.is_blocked ? "card-blocked" : ""}`}
+      title={descriptionPreview}
       onClick={() => onOpenDetail(task.id)}
     >
       <div className="card-header">
