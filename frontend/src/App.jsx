@@ -15,7 +15,8 @@ import { TaskHistoryTimeline } from "./components/TaskHistoryTimeline";
 const API = "/api";
 const POLL_INTERVAL = 3000;
 
-const SPECIALIZATIONS = ["diego", "intake", "planning", "claude-code", "coding", "research"];
+// Fallback specializations (used if fetch fails)
+const FALLBACK_SPECIALIZATIONS = ["diego", "intake", "planning", "claude-code", "coding", "research"];
 
 const SPEC_COLORS = {
   diego: "#71717a",
@@ -168,11 +169,11 @@ function BlockerEditor({ blockedBy, allTasks, taskId, onChange }) {
   );
 }
 
-function CreateTaskModal({ onClose, onCreate }) {
+function CreateTaskModal({ onClose, onCreate, specializations }) {
   const [draft, setDraft] = useState({
     title: "",
     description: "",
-    specialization: "diego",
+    specialization: specializations?.[0] || FALLBACK_SPECIALIZATIONS[0],
   });
 
   // Escape key handler
@@ -248,7 +249,7 @@ function CreateTaskModal({ onClose, onCreate }) {
               value={draft.specialization}
               onChange={(e) => setField("specialization", e.target.value)}
             >
-              {SPECIALIZATIONS.map((s) => (
+              {(specializations || FALLBACK_SPECIALIZATIONS).map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>
@@ -395,7 +396,7 @@ function ProjectEditor({ value, projects, onChange }) {
   );
 }
 
-function TaskDetailModal({ taskId, allTasks, projects, onClose, onUpdate, onDelete, columns }) {
+function TaskDetailModal({ taskId, allTasks, projects, onClose, onUpdate, onDelete, columns, specializations }) {
   const task = allTasks.find((t) => t.id === taskId);
   const [draft, setDraft] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -525,7 +526,7 @@ function TaskDetailModal({ taskId, allTasks, projects, onClose, onUpdate, onDele
                 value={draft.specialization}
                 onChange={(e) => setField("specialization", e.target.value)}
               >
-                {SPECIALIZATIONS.map((s) => (
+                {(specializations || FALLBACK_SPECIALIZATIONS).map((s) => (
                   <option key={s} value={s}>
                     {s}
                   </option>
@@ -765,6 +766,20 @@ function App() {
     fetchStatuses();
   }, []);
 
+  // Fetch specializations once on mount
+  const [specializations, setSpecializations] = useState([]);
+  useEffect(() => {
+    async function fetchSpecializations() {
+      try {
+        const specs = await api("/specializations");
+        setSpecializations(specs);
+      } catch (err) {
+        console.error("Failed to load specializations:", err);
+      }
+    }
+    fetchSpecializations();
+  }, []);
+
   const fetchTasks = useCallback(async () => {
     try {
       // Build status query from all available statuses (from columns)
@@ -956,6 +971,7 @@ function App() {
         <CreateTaskModal
           onClose={() => setIsCreateModalOpen(false)}
           onCreate={addTask}
+          specializations={specializations}
         />
       )}
 
@@ -978,6 +994,7 @@ function App() {
           onUpdate={updateTask}
           onDelete={deleteTask}
           columns={columns}
+          specializations={specializations}
         />
       )}
       </div>
