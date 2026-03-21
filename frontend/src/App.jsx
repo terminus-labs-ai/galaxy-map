@@ -742,15 +742,37 @@ function Column({ column, tasks, allTasks, onOpenDetail }) {
 }
 
 function App() {
-  const [localSearchQuery, setLocalSearchQuery] = useState("");
+  // Drag state
+  const [activeId, setActiveId] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [columns, setColumns] = useState([]);
+  const [error, setError] = useState(null);
+  const [selectedTaskId, setSelectedTaskId] = useState(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [projectFilter, setProjectFilter] = useState("");
   const [selectedPriority, setSelectedPriority] = useState(0);
 
+  // Create sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
         delay: 250,
-        tolerance: 5,
+        tolerance: 5
       },
     })
   );
   const [localSearchQuery, setLocalSearchQuery] = useState("");
+
 
   // Fetch statuses once on mount and build columns
   useEffect(() => {
