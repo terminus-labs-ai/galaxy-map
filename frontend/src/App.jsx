@@ -741,7 +741,7 @@ function Column({ column, tasks, allTasks, onOpenDetail }) {
   );
 }
 
-function App() {
+export default function App() {
   // Drag state
   const [activeId, setActiveId] = useState(null);
   const [tasks, setTasks] = useState([]);
