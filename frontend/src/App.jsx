@@ -9,14 +9,11 @@ import {
   DragOverlay,
   defaultDropAnimationSideEffects,
 } from "@dnd-kit/core";
-import { useTaskHistory } from "./hooks/useTaskHistory";
-import { TaskHistoryTimeline } from "./components/TaskHistoryTimeline";
 
 const API = "/api";
 const POLL_INTERVAL = 3000;
 
-// Fallback specializations (used if fetch fails)
-const FALLBACK_SPECIALIZATIONS = ["diego", "intake", "planning", "claude-code", "coding", "research"];
+const SPECIALIZATIONS = ["diego", "intake", "planning", "claude-code", "coding", "research"];
 
 const SPEC_COLORS = {
   diego: "#71717a",
@@ -169,11 +166,11 @@ function BlockerEditor({ blockedBy, allTasks, taskId, onChange }) {
   );
 }
 
-function CreateTaskModal({ onClose, onCreate, specializations }) {
+function CreateTaskModal({ onClose, onCreate }) {
   const [draft, setDraft] = useState({
     title: "",
     description: "",
-    specialization: specializations?.[0] || FALLBACK_SPECIALIZATIONS[0],
+    specialization: "diego",
   });
 
   // Escape key handler
@@ -249,7 +246,7 @@ function CreateTaskModal({ onClose, onCreate, specializations }) {
               value={draft.specialization}
               onChange={(e) => setField("specialization", e.target.value)}
             >
-              {(specializations || FALLBACK_SPECIALIZATIONS).map((s) => (
+              {SPECIALIZATIONS.map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>
@@ -396,13 +393,9 @@ function ProjectEditor({ value, projects, onChange }) {
   );
 }
 
-function TaskDetailModal({ taskId, allTasks, projects, onClose, onUpdate, onDelete, columns, specializations }) {
+function TaskDetailModal({ taskId, allTasks, projects, onClose, onUpdate, onDelete, columns }) {
   const task = allTasks.find((t) => t.id === taskId);
   const [draft, setDraft] = useState(null);
-  const [showHistory, setShowHistory] = useState(false);
-  
-  // Fetch task history
-  const { history: taskHistory, loading: historyLoading, error: historyError, hasMore, loadMore } = useTaskHistory(taskId);
 
   // Initialize draft when task changes
   useEffect(() => {
@@ -526,7 +519,7 @@ function TaskDetailModal({ taskId, allTasks, projects, onClose, onUpdate, onDele
                 value={draft.specialization}
                 onChange={(e) => setField("specialization", e.target.value)}
               >
-                {(specializations || FALLBACK_SPECIALIZATIONS).map((s) => (
+                {SPECIALIZATIONS.map((s) => (
                   <option key={s} value={s}>
                     {s}
                   </option>
@@ -595,28 +588,6 @@ function TaskDetailModal({ taskId, allTasks, projects, onClose, onUpdate, onDele
           <div className="modal-field">
             <label className="modal-label">Metadata</label>
             <MetadataEditor value={draft.metadata} onChange={(val) => setField("metadata", val)} />
-          </div>
-
-          {/* History Section */}
-          <div className="modal-field">
-            <div className="modal-field-header" onClick={() => setShowHistory(!showHistory)}>
-              <label className="modal-label">History</label>
-              <button className="history-toggle-btn" onClick={(e) => { e.stopPropagation(); setShowHistory(!showHistory); }}>
-                {showHistory ? "Hide" : "Show"}
-              </button>
-            </div>
-            {showHistory && (
-              <div className="history-section">
-                <TaskHistoryTimeline
-                  history={taskHistory}
-                  loading={historyLoading}
-                  error={historyError}
-                  hasMore={hasMore}
-                  onLoadMore={loadMore}
-                  compact={false}
-                />
-              </div>
-            )}
           </div>
         </div>
 
@@ -767,12 +738,11 @@ export default function App() {
     useSensor(TouchSensor, {
       activationConstraint: {
         delay: 250,
-        tolerance: 5
+        tolerance: 5,
       },
     })
   );
   const [localSearchQuery, setLocalSearchQuery] = useState("");
-
 
   // Fetch statuses once on mount and build columns
   useEffect(() => {
@@ -786,20 +756,6 @@ export default function App() {
       }
     }
     fetchStatuses();
-  }, []);
-
-  // Fetch specializations once on mount
-  const [specializations, setSpecializations] = useState([]);
-  useEffect(() => {
-    async function fetchSpecializations() {
-      try {
-        const specs = await api("/specializations");
-        setSpecializations(specs);
-      } catch (err) {
-        console.error("Failed to load specializations:", err);
-      }
-    }
-    fetchSpecializations();
   }, []);
 
   const fetchTasks = useCallback(async () => {
@@ -993,7 +949,6 @@ export default function App() {
         <CreateTaskModal
           onClose={() => setIsCreateModalOpen(false)}
           onCreate={addTask}
-          specializations={specializations}
         />
       )}
 
@@ -1016,7 +971,6 @@ export default function App() {
           onUpdate={updateTask}
           onDelete={deleteTask}
           columns={columns}
-          specializations={specializations}
         />
       )}
       </div>
