@@ -195,5 +195,7 @@ class TaskRepository:
           (json.dumps(blockers), datetime.now(timezone.utc).isoformat(), ref["id"]),
         )
 
+    # Delete history entries (FK constraint)
+    await self.db.execute("DELETE FROM task_history WHERE task_id = ?", (task_id,))
     await self.db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
     await self.db.commit()
