@@ -62,4 +62,4 @@ messages:
 
 api_defaults:
   # Default status filter in /api/tasks if not specified
-  list_tasks_default_status: "queued,in_progress"
+  list_tasks_default_status: "backlog,queued,in_progress,needs_review,validating,needs_human,failed,error"

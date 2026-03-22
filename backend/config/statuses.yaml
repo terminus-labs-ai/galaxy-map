@@ -20,7 +20,7 @@ statuses:
     description: Task is actively being worked on by an agent.
     order: 2
     color: "#a78bfa"
-    allowed_transitions: [needs_review, needs_human, backlog]
+    allowed_transitions: [needs_review, needs_human, error, backlog]
     terminal: false
 
   - key: needs_review
@@ -28,21 +28,45 @@ statuses:
     description: Task is complete but awaiting approval or code review.
     order: 3
     color: "#fb923c"
-    allowed_transitions: [in_progress, done, needs_human]
+    allowed_transitions: [in_progress, validating, done, needs_human]
+    terminal: false
+
+  - key: validating
+    label: Validating
+    description: Task is being reviewed by the quality gate.
+    order: 4
+    color: "#818cf8"
+    allowed_transitions: [done, failed, error, needs_review]
     terminal: false
 
   - key: needs_human
     label: Needs Human
     description: Task requires human intervention, decision, or manual action.
-    order: 4
+    order: 5
     color: "#f87171"
     allowed_transitions: [in_progress, done]
+    terminal: false
+
+  - key: failed
+    label: Failed
+    description: Quality gate rejected the task. Can be retried.
+    order: 6
+    color: "#ef4444"
+    allowed_transitions: [queued, in_progress]
+    terminal: false
+
+  - key: error
+    label: Error
+    description: Task execution encountered an error. Can be retried.
+    order: 7
+    color: "#f97316"
+    allowed_transitions: [queued, in_progress]
     terminal: false
 
   - key: done
     label: Done
     description: Task is complete and closed.
-    order: 5
+    order: 8
     color: "#34d399"
     allowed_transitions: []
     terminal: true
