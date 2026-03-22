@@ -17,6 +17,7 @@ async def get_db() -> aiosqlite.Connection:
     foreign_keys = db_config.get("foreign_keys", True)
 
     await db.execute(f"PRAGMA journal_mode={journal_mode}")
+    await db.execute("PRAGMA busy_timeout=5000")
     if foreign_keys:
         await db.execute("PRAGMA foreign_keys=ON")
 
