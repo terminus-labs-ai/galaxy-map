@@ -10,8 +10,11 @@ function TaskCount({ tasks }) {
     statusCounts[status]++;
   });
 
+  const entries = Object.entries(statusCounts);
+  if (entries.length === 0) return null;
+
   // Build badges for each status
-  const badges = Object.entries(statusCounts).map(([status, count]) => (
+  const badges = entries.map(([status, count]) => (
     <span
       key={status}
       style={{
