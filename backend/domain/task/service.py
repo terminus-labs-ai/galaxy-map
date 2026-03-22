@@ -4,6 +4,7 @@ import uuid
 import json
 from datetime import datetime, timezone
 import aiosqlite
+from fastapi import HTTPException
 from core import Config, TaskNotFound, DuplicateTask, TaskNotQueued, TaskBlocked
 from .model import Task
 from .repository import TaskRepository
@@ -312,3 +313,141 @@ class TaskService:
         intersection = len(words1 & words2)
         union = len(words1 | words2)
         return intersection / union if union > 0 else 0.0
+
+    async def create_project_plan(
+        self,
+        project_id: str,
+        tasks: list[dict],
+    ) -> dict:
+        """Create an entire project plan from a nested task tree.
+
+        Walks the tree depth-first, creating tasks with:
+        - status: queued (always)
+        - project_id: inherited from top-level param
+        - blocked_by: [parent_id] (nesting defines dependency)
+        - priority: 10 - depth (floor at 1)
+
+        Atomic: rolls back all created tasks on any failure.
+        """
+        from core import InvalidProjectPlan, Config
+
+        # --- Validation pass (before any DB writes) ---
+        errors = []
+
+        if not project_id or not project_id.strip():
+            errors.append("project_id is required and cannot be empty")
+
+        if not tasks:
+            errors.append("tasks array is required and cannot be empty")
+
+        valid_specializations = Config.specializations()
+
+        def _count_and_validate(nodes, depth=0, path="tasks"):
+            count = 0
+            if depth > 10:
+                errors.append(f"Tree depth exceeds maximum of 10 levels at {path}")
+                return count
+            for i, node in enumerate(nodes):
+                node_path = f"{path}[{i}]"
+                count += 1
+                if not node.get("title") or not node["title"].strip():
+                    errors.append(f"{node_path}.title is required and cannot be empty")
+                if not node.get("description") or not node["description"].strip():
+                    errors.append(f"{node_path}.description is required and cannot be empty")
+                elif len(node["description"].strip()) < 20:
+                    errors.append(f"{node_path}.description must be at least 20 characters")
+                spec = node.get("specialization", "")
+                if spec not in valid_specializations:
+                    errors.append(
+                        f"{node_path}.specialization '{spec}' is invalid. "
+                        f"Must be one of: {valid_specializations}"
+                    )
+                if node.get("subtasks"):
+                    count += _count_and_validate(node["subtasks"], depth + 1, f"{node_path}.subtasks")
+            return count
+
+        total = _count_and_validate(tasks) if tasks else 0
+        if total > 50:
+            errors.append(f"Plan contains {total} tasks, maximum is 50")
+
+        if errors:
+            raise InvalidProjectPlan(errors)
+
+        # --- Creation pass (atomic) ---
+        created_ids = []
+        created_map = {}  # id -> task dict (for response assembly)
+
+        async def _create_recursive(nodes, parent_id=None, depth=0):
+            for node in nodes:
+                task_id = uuid.uuid4().hex[:12]
+                priority = max(1, 10 - depth)
+                blocked_by = [parent_id] if parent_id else []
+                now = datetime.now(timezone.utc).isoformat()
+
+                await self.db.execute(
+                    """INSERT INTO tasks (id, title, description, status, specialization,
+                       priority, blocked_by, metadata, created_at, updated_at, project_id)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        task_id,
+                        node["title"],
+                        node["description"],
+                        "queued",
+                        node["specialization"],
+                        priority,
+                        json.dumps(blocked_by),
+                        json.dumps({}),
+                        now,
+                        now,
+                        project_id,
+                    ),
+                )
+                created_ids.append(task_id)
+                created_map[task_id] = {
+                    "id": task_id,
+                    "title": node["title"],
+                    "specialization": node["specialization"],
+                    "status": "queued",
+                    "blocked_by": blocked_by,
+                    "priority": priority,
+                    "_subtask_defs": node.get("subtasks", []),
+                    "_children": [],
+                }
+
+                if parent_id and parent_id in created_map:
+                    created_map[parent_id]["_children"].append(task_id)
+
+                if node.get("subtasks"):
+                    await _create_recursive(node["subtasks"], parent_id=task_id, depth=depth + 1)
+
+        try:
+            await _create_recursive(tasks)
+            await self.db.commit()
+        except Exception as e:
+            await self.db.rollback()
+            raise HTTPException(status_code=500, detail=f"Failed to create project plan: {e}")
+
+        # --- Assemble response tree ---
+        def _build_tree(node_ids):
+            result = []
+            for nid in node_ids:
+                info = created_map[nid]
+                result.append({
+                    "id": info["id"],
+                    "title": info["title"],
+                    "specialization": info["specialization"],
+                    "status": info["status"],
+                    "blocked_by": info["blocked_by"],
+                    "priority": info["priority"],
+                    "subtasks": _build_tree(info["_children"]),
+                })
+            return result
+
+        root_ids = [cid for cid in created_ids if not created_map[cid]["blocked_by"]]
+        task_tree = _build_tree(root_ids)
+
+        return {
+            "project_id": project_id,
+            "tasks_created": len(created_ids),
+            "task_tree": task_tree,
+        }

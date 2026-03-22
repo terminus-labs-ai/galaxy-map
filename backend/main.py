@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from core import Config
 from infrastructure import init_db
-from api.routes import tasks, messages, system
+from api.routes import tasks, messages, system, projects
 
 
 @asynccontextmanager
@@ -42,6 +42,7 @@ app.add_middleware(
 app.include_router(tasks.router)
 app.include_router(messages.router)
 app.include_router(system.router)
+app.include_router(projects.router)
 
 
 @app.get("/api/health")

@@ -89,3 +89,38 @@ class TaskHistoryResponse(BaseModel):
     changed_by: str
     timestamp: str
     details: dict
+
+
+# --- Project Plan schemas ---
+
+
+class TaskNode(BaseModel):
+    """A task node in a project plan tree."""
+    title: str
+    specialization: str
+    description: str
+    subtasks: list["TaskNode"] = Field(default_factory=list)
+
+
+class ProjectPlanCreate(BaseModel):
+    """Create project plan request."""
+    project_id: str
+    tasks: list[TaskNode]
+
+
+class ProjectPlanTaskResponse(BaseModel):
+    """A task node in the project plan response tree."""
+    id: str
+    title: str
+    specialization: str
+    status: str
+    blocked_by: list[str]
+    priority: int
+    subtasks: list["ProjectPlanTaskResponse"] = Field(default_factory=list)
+
+
+class ProjectPlanResponse(BaseModel):
+    """Project plan creation response."""
+    project_id: str
+    tasks_created: int
+    task_tree: list[ProjectPlanTaskResponse]

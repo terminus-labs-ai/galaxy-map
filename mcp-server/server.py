@@ -418,3 +418,56 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+@mcp.tool()
+async def create_project_plan(
+    project_id: str,
+    tasks: list[dict],
+) -> dict:
+    """Create an entire project plan as a tree of tasks.
+
+    Nesting defines dependencies — subtasks are blocked by their parent.
+    Siblings run in parallel. All tasks are automatically set to queued
+    status with the specified project_id.
+
+    Each task node requires: title (str), specialization (str), description (str).
+    Optional: subtasks (list of task nodes) — children that depend on this task.
+
+    Priority is assigned by depth: root=10, children=9, grandchildren=8, etc. (min 1).
+
+    Example:
+        create_project_plan(
+            project_id="my-project",
+            tasks=[{
+                "title": "Research approach",
+                "specialization": "research",
+                "description": "Research best practices. Done when: summary written.",
+                "subtasks": [{
+                    "title": "Implement solution",
+                    "specialization": "coding",
+                    "description": "Build the feature. Done when: tests pass."
+                }]
+            }]
+        )
+
+    Args:
+        project_id: Project identifier. All tasks will be tagged with this.
+        tasks: Root task nodes. Each can have nested subtasks.
+    """
+    body = {"project_id": project_id, "tasks": tasks}
+    url = _api("/projects/plan")
+    logger.debug("create_project_plan -> POST %s body=%s", url, body)
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.post(url, json=body, timeout=30.0)
+            logger.debug("create_project_plan <- %s (%d bytes)", resp.status_code, len(resp.content))
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPStatusError as e:
+            error_detail = e.response.json().get("detail", "Unknown error")
+            logger.error("create_project_plan failed: %s", error_detail)
+            return {"error": error_detail}
+        except httpx.HTTPError as e:
+            logger.error("create_project_plan failed: %s", e)
+            raise

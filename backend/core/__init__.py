@@ -10,6 +10,7 @@ from .exceptions import (
     TaskNotQueued,
     TaskBlocked,
     MessageNotFound,
+    InvalidProjectPlan,
 )
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "TaskNotQueued",
     "TaskBlocked",
     "MessageNotFound",
+    "InvalidProjectPlan",
 ]

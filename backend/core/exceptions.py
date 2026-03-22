@@ -58,3 +58,11 @@ class TaskBlocked(HTTPException):
 class MessageNotFound(HTTPException):
     def __init__(self, message_id: str):
         super().__init__(status_code=404, detail=f"Message '{message_id}' not found")
+
+
+class InvalidProjectPlan(HTTPException):
+    def __init__(self, errors: list[str]):
+        super().__init__(
+            status_code=400,
+            detail={"message": "Invalid project plan", "errors": errors},
+        )
