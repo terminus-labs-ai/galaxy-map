@@ -1181,3 +1181,49 @@ body.light-theme {
   --warning: #f97316;
   --warning-dim: rgba(249, 115, 22, 0.1);
 }
+
+/* ── Local Search Filter ─────────────────────────────────────────────── */
+
+.header-local-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 24px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Task Count Bar ──────────────────────────────────────────────────── */
+
+.task-count-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 24px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.task-count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.task-count-label {
+  color: var(--text-muted);
+}
+
+.task-count-value {
+  color: var(--text);
+  font-weight: 600;
+}
