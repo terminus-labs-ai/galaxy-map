@@ -1199,12 +1199,25 @@ body.light-theme {
 .task-count-bar {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
   padding: 6px 24px;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.task-count-bar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.task-count-bar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
 }
 
 .task-count-badge {
@@ -1217,6 +1230,8 @@ body.light-theme {
   border-radius: 3px;
   background: var(--surface);
   border: 1px solid var(--border);
+  min-width: 60px;
+  text-align: center;
 }
 
 .task-count-label {
