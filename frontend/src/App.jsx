@@ -672,23 +672,26 @@ function TaskCard({ task, allTasks, onOpenDetail }) {
 
 function Column({ column, tasks, allTasks, onOpenDetail }) {
   const [collapsed, setCollapsed] = useState(false);
+  
+  // Load collapsed state from localStorage
+  useEffect(() => {
+    const savedCollapsed = localStorage.getItem(`column-collapsed-${column.key}`);
+    if (savedCollapsed !== null) {
+      setCollapsed(JSON.parse(savedCollapsed));
+    }
+  }, [column.key]);
+
+  // Save collapsed state to localStorage
+  useEffect(() => {
+    localStorage.setItem(`column-collapsed-${column.key}`, JSON.stringify(collapsed));
+  }, [column.key, collapsed]);
 
   return (
-    <div className="column" style={{ minWidth: collapsed ? "60px" : "" }}>
+    <div className={`column ${collapsed ? 'collapsed' : ''}`}>
       <div className="column-header" style={{ borderTopColor: column.color }}>
         <button
           className="collapse-toggle"
           onClick={() => setCollapsed(!collapsed)}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: "12px",
-            color: "#71717a",
-            marginRight: "6px",
-            padding: "0",
-            lineHeight: "1",
-          }}
           title={collapsed ? "Expand column" : "Collapse column"}
         >
           {collapsed ? "▶" : "▼"}
@@ -934,15 +937,21 @@ export default function App() {
 
       <TaskCount tasks={filteredTasks} />
       <div className="board">
-        {columns.map((col) => (
-          <Column
-            key={col.key}
-            column={col}
-            tasks={filteredTasks.filter((t) => t.status === col.key)}
-            allTasks={filteredTasks}
-            onOpenDetail={setSelectedTaskId}
-          />
-        ))}
+        {columns
+          .filter(col => {
+            // Check if column is collapsed (load from localStorage)
+            const savedCollapsed = localStorage.getItem(`column-collapsed-${col.key}`);
+            return savedCollapsed === null ? true : !JSON.parse(savedCollapsed);
+          })
+          .map((col) => (
+            <Column
+              key={col.key}
+              column={col}
+              tasks={filteredTasks.filter((t) => t.status === col.key)}
+              allTasks={filteredTasks}
+              onOpenDetail={setSelectedTaskId}
+            />
+          ))}
       </div>
 
       {isCreateModalOpen && (
