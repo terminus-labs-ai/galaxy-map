@@ -334,3 +334,54 @@ async def test_tasks_persisted_to_db(client, sample_plan):
     for child in root["subtasks"]:
         await client.delete(f"/api/tasks/{child['id']}")
     await client.delete(f"/api/tasks/{root['id']}")
+
+
+@pytest.mark.asyncio
+async def test_shared_metadata_applied_to_all_tasks(client):
+    """shared_metadata is merged into every task's metadata at creation."""
+    plan = {
+        "project_id": "shared-meta-test",
+        "shared_metadata": {"repo": "test/repo", "lang": "python"},
+        "tasks": [{
+            "title": "Parent task for shared metadata test",
+            "specialization": "planning",
+            "description": "Root task to verify shared_metadata propagation. Done when: children done.",
+            "subtasks": [
+                {
+                    "title": "Child A for shared metadata test",
+                    "specialization": "coding",
+                    "description": "First child to verify shared_metadata. Done when: complete.",
+                },
+                {
+                    "title": "Child B for shared metadata test",
+                    "specialization": "research",
+                    "description": "Second child to verify shared_metadata. Done when: complete.",
+                },
+            ],
+        }],
+    }
+    resp = await client.post("/api/projects/plan", json=plan)
+    assert resp.status_code == 201
+    data = resp.json()
+
+    root = data["task_tree"][0]
+    all_ids = [root["id"]] + [c["id"] for c in root["subtasks"]]
+
+    # Every task should have the shared metadata
+    for task_id in all_ids:
+        get_resp = await client.get(f"/api/tasks/{task_id}")
+        assert get_resp.status_code == 200
+        task = get_resp.json()
+        assert task["metadata"]["repo"] == "test/repo"
+        assert task["metadata"]["lang"] == "python"
+
+    # Verify task-specific metadata doesn't clobber shared metadata
+    await client.patch(f"/api/tasks/{all_ids[0]}/metadata", json={"claimed_by": "tali"})
+    get_resp = await client.get(f"/api/tasks/{all_ids[0]}")
+    task = get_resp.json()
+    assert task["metadata"]["claimed_by"] == "tali"
+    assert task["metadata"]["repo"] == "test/repo"
+
+    # Cleanup
+    for tid in reversed(all_ids):
+        await client.delete(f"/api/tasks/{tid}")

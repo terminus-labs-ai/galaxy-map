@@ -23,6 +23,7 @@ async def create_project_plan(plan: ProjectPlanCreate):
     result = await service.create_project_plan(
         project_id=plan.project_id,
         tasks=[t.model_dump() for t in plan.tasks],
+        shared_metadata=plan.shared_metadata,
     )
 
     await db.close()

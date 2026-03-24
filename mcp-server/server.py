@@ -424,6 +424,7 @@ if __name__ == "__main__":
 async def create_project_plan(
     project_id: str,
     tasks: list[dict],
+    shared_metadata: Optional[dict] = None,
 ) -> dict:
     """Create an entire project plan as a tree of tasks.
 
@@ -454,8 +455,12 @@ async def create_project_plan(
     Args:
         project_id: Project identifier. All tasks will be tagged with this.
         tasks: Root task nodes. Each can have nested subtasks.
+        shared_metadata: Optional dict merged into every task's metadata at creation time.
+                         Use for plan-wide values like repo URL. Example: {"repo": "myorg/myrepo"}
     """
     body = {"project_id": project_id, "tasks": tasks}
+    if shared_metadata:
+        body["shared_metadata"] = shared_metadata
     url = _api("/projects/plan")
     logger.debug("create_project_plan -> POST %s body=%s", url, body)
     async with httpx.AsyncClient() as client:

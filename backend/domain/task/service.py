@@ -318,6 +318,7 @@ class TaskService:
         self,
         project_id: str,
         tasks: list[dict],
+        shared_metadata: dict | None = None,
     ) -> dict:
         """Create an entire project plan from a nested task tree.
 
@@ -396,7 +397,7 @@ class TaskService:
                         node["specialization"],
                         priority,
                         json.dumps(blocked_by),
-                        json.dumps({}),
+                        json.dumps(shared_metadata or {}),
                         now,
                         now,
                         project_id,
