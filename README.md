@@ -41,6 +41,7 @@ All endpoints are under `/api`.
 | `GET`    | `/api/statuses`           | List all valid statuses with metadata and descriptions |
 | `GET`    | `/api/statuses/{key}`     | Get single status details including allowed transitions |
 | `GET`    | `/api/specializations`    | List valid specializations                            |
+| `POST`   | `/api/projects/plan`      | Create a project plan (tree of tasks with dependencies) |
 | `GET`    | `/api/health`             | Health check                                          |
 
 ### Create a task
@@ -131,6 +132,45 @@ curl "http://localhost:8000/api/tasks?status=queued&project_id=perf-improvements
 curl http://localhost:8000/api/tasks/projects
 # [{"project_id": "perf-improvements", "task_count": 3}, ...]
 ```
+
+### Create a project plan
+
+Create an entire tree of tasks at once. Nesting defines dependencies — subtasks are blocked by their parent. Siblings run in parallel. All tasks are set to `queued` with the specified `project_id`.
+
+```bash
+curl -X POST http://localhost:8000/api/projects/plan \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": "my-feature",
+    "shared_metadata": {"repo": "myorg/myrepo"},
+    "tasks": [
+      {
+        "title": "Research approach",
+        "specialization": "research",
+        "description": "Investigate options and write summary. Done when: summary written.",
+        "subtasks": [
+          {
+            "title": "Implement solution",
+            "specialization": "coding",
+            "description": "Build the feature. Done when: tests pass."
+          },
+          {
+            "title": "Write docs",
+            "specialization": "planning",
+            "description": "Document the feature. Done when: docs published."
+          }
+        ]
+      }
+    ]
+  }'
+```
+
+**Fields**:
+- `project_id` (required): All tasks get this project slug
+- `tasks` (required): Array of task nodes, each with `title`, `specialization`, `description`, and optional `subtasks`
+- `shared_metadata` (optional): Dict merged into every task's metadata at creation time — useful for plan-wide values like repo URL
+
+Priority is assigned by depth: root=10, children=9, etc. (floor at 1). Maximum 50 tasks, 10 levels deep.
 
 ### Agent metadata
 
@@ -234,6 +274,7 @@ The MCP server wraps the REST API as MCP tools, so any MCP-compatible client (Cl
 | `get_status_details` | Get details for a single status including allowed transitions |
 | `list_specializations` | List valid specializations |
 | `list_projects` | List distinct project_ids with task counts |
+| `create_project_plan` | Create a project plan as a tree of tasks with auto-wired dependencies |
 | `get_task_stats` | Get task statistics by status and specialization |
 
 ### Local (stdio)
