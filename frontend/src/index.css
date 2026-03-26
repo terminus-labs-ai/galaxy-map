@@ -1205,6 +1205,7 @@ body.light-theme {
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .task-count-badge {
