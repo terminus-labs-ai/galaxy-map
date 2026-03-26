@@ -670,6 +670,10 @@ function Column({ column, tasks, allTasks, onOpenDetail }) {
               task={t}
               allTasks={allTasks}
               onOpenDetail={onOpenDetail}
+              SpecBadge={SpecBadge}
+              BlockedIndicator={BlockedIndicator}
+              timeAgo={timeAgo}
+              truncate={truncate}
             />
           ))}
         </div>
