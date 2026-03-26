@@ -1,4 +1,4 @@
-import { SPEC_COLORS } from "../App";
+import { SPEC_COLORS } from "../utils/helpers";
 
 function SpecBadge({ spec }) {
   return (

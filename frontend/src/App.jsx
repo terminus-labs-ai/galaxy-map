@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import TaskCount from "./components/TaskCount";
+import SearchResultsModal from "./components/SearchResultsModal";
 import SpecBadge from "./components/SpecBadge";
 import { truncate, timeAgo } from "./utils/helpers";
 import {
@@ -17,13 +18,7 @@ const POLL_INTERVAL = 3000;
 
 const SPECIALIZATIONS = ["diego", "intake", "planning", "claude-code", "coding", "research"];
 
-export const SPEC_COLORS = {
-  diego: "#71717a",
-  intake: "#5599ff",
-  coding: "#a78bfa",
-  planning: "#fb923c",
-  research: "#34d399",
-};
+import { SPEC_COLORS } from "./utils/helpers";
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 

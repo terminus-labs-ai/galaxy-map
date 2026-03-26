@@ -1,3 +1,11 @@
+export const SPEC_COLORS = {
+  diego: "#71717a",
+  intake: "#5599ff",
+  coding: "#a78bfa",
+  planning: "#fb923c",
+  research: "#34d399",
+};
+
 export function timeAgo(iso) {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (seconds < 60) return "just now";
