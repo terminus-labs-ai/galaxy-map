@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import TaskCount from "./components/TaskCount";
+import Column from "./components/Column";
 import {
   DndContext,
   MouseSensor,
@@ -38,51 +39,9 @@ async function api(path, options = {}) {
   return res.json();
 }
 
-function timeAgo(iso) {
-  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return "just now";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86400)}d ago`;
-}
-
-function truncate(text, maxLen = 120) {
-  if (!text || text.length <= maxLen) return text;
-  return text.slice(0, maxLen).trimEnd() + "…";
-}
-
 // ── Components ─────────────────────────────────────────────────────────
 
-function SpecBadge({ spec }) {
-  return (
-    <span
-      className="spec-badge"
-      style={{
-        color: SPEC_COLORS[spec] || SPEC_COLORS.diego,
-        borderColor: SPEC_COLORS[spec] || SPEC_COLORS.diego,
-      }}
-    >
-      {spec}
-    </span>
-  );
-}
 
-function BlockedIndicator({ task, allTasks }) {
-  if (!task.is_blocked) return null;
-
-  const blockerNames = task.blocked_by
-    .map((id) => {
-      const t = allTasks.find((x) => x.id === id);
-      return t ? t.title : id;
-    })
-    .join(", ");
-
-  return (
-    <span className="blocked-badge" title={`Blocked by: ${blockerNames}`}>
-      blocked
-    </span>
-  );
-}
 
 
 function MetadataEditor({ value, onChange }) {
@@ -633,7 +592,6 @@ function TaskDetailModal({ taskId, allTasks, projects, onClose, onUpdate, onDele
   );
 }
 
-function TaskCard({ task, allTasks, onOpenDetail }) {
   const descriptionPreview = task.description
     ? task.description.length > 100
       ? task.description.slice(0, 100).trimEnd() + "..."
@@ -667,50 +625,7 @@ function TaskCard({ task, allTasks, onOpenDetail }) {
         <div>Created: {timeAgo(task.created_at)}</div>
       </div>
     </div>
-  );
-}
-
-function Column({ column, tasks, allTasks, onOpenDetail }) {
-  const [collapsed, setCollapsed] = useState(false);
-
-  return (
-    <div className="column" style={{ minWidth: collapsed ? "60px" : "" }}>
-      <div className="column-header" style={{ borderTopColor: column.color }}>
-        <button
-          className="collapse-toggle"
-          onClick={() => setCollapsed(!collapsed)}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: "12px",
-            color: "#71717a",
-            marginRight: "6px",
-            padding: "0",
-            lineHeight: "1",
-          }}
-          title={collapsed ? "Expand column" : "Collapse column"}
-        >
-          {collapsed ? "▶" : "▼"}
-        </button>
-        <span className="column-title">{column.label}</span>
-        <span className="column-count">{tasks.length}</span>
-      </div>
-      {!collapsed && (
-        <div className="column-body">
-          {tasks.map((t) => (
-            <TaskCard
-              key={t.id}
-              task={t}
-              allTasks={allTasks}
-              onOpenDetail={onOpenDetail}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+  
 
 export default function App() {
   // Drag state
