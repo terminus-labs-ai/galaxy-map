@@ -182,16 +182,20 @@ async def update_task(
 ) -> dict:
     """Update a task (partial update — only provided fields are changed).
 
+    Common uses:
+        update_task(task_id="abc123", project_id="my-project")  # assign to project
+        update_task(task_id="abc123", status="done")             # mark complete
+
     Args:
         task_id: The task ID to update.
         title: New title.
         description: New description.
-        status: New status. Use list_statuses() or get_status_details() to see valid values and allowed transitions.
+        status: New status. Use list_statuses() to see valid values and allowed transitions.
         specialization: New specialization (general, coding, planning, research).
         priority: New priority.
         blocked_by: New list of blocker task IDs (replaces existing list).
         metadata: New metadata dict (replaces existing metadata).
-        project_id: New project slug (set to null to remove from project).
+        project_id: Project slug (set to null to remove from project).
     """
     body = {}
     if title is not None:
@@ -428,36 +432,90 @@ async def create_project_plan(
 ) -> dict:
     """Create an entire project plan as a tree of tasks.
 
-    Nesting defines dependencies — subtasks are blocked by their parent.
-    Siblings run in parallel. All tasks are automatically set to queued
-    status with the specified project_id.
+    IMPORTANT: Always include shared_metadata with the target repo.
+    Without it, downstream agents cannot clone the repository and will fail.
 
-    Each task node requires: title (str), specialization (str), description (str).
-    Optional: subtasks (list of task nodes) — children that depend on this task.
+    STRUCTURE:
+      - The `tasks` array contains ONLY research tasks. They run in parallel.
+      - Coding/testing tasks go inside a research task's `subtasks`.
+      - Subtasks are blocked by their parent — they start after the parent completes.
+      - This is the ONLY way to create dependencies.
 
-    Priority is assigned by depth: root=10, children=9, grandchildren=8, etc. (min 1).
+    ROOT TASK fields (items in the `tasks` array):
+      - title (str, REQUIRED): must start with "Research", "Analyze", "Investigate", or "Survey"
+      - specialization (str, REQUIRED): MUST be "research"
+      - description (str, REQUIRED): 2-3 sentences ending with "Done when: <criteria>"
+      - subtasks (list, REQUIRED): coding/testing tasks that depend on this research
 
-    Example:
+    SUBTASK fields (items in a task's `subtasks`):
+      - title (str, REQUIRED): what to do
+      - specialization (str, REQUIRED): "coding", "planning", or "claude-code"
+      - description (str, REQUIRED): 2-3 sentences ending with "Done when: <criteria>"
+      - subtasks (list, optional): further nested tasks
+
+    Priority is set automatically by depth: root=10, children=9, grandchildren=8, min=1.
+
+    Example — two parallel research tracks, each with coding and testing subtasks:
+
         create_project_plan(
-            project_id="my-project",
+            project_id="api-improvements",
+            shared_metadata={"repo": "myorg/my-api"},
             tasks=[{
-                "title": "Research approach",
+                "title": "Research rate limiting approaches",
                 "specialization": "research",
-                "description": "Research best practices. Done when: summary written.",
+                "description": "Survey rate limiting libraries for FastAPI. Done when: recommended approach documented.",
                 "subtasks": [{
-                    "title": "Implement solution",
+                    "title": "Implement rate limiting middleware",
                     "specialization": "coding",
-                    "description": "Build the feature. Done when: tests pass."
+                    "description": "Configure SlowAPI with 60 req/min per-IP limit. Done when: returns 429 on excess requests.",
+                    "subtasks": [{
+                        "title": "Write rate limiting tests",
+                        "specialization": "coding",
+                        "description": "Test 429 responses and per-IP isolation. Done when: all tests pass."
+                    }]
+                }]
+            }, {
+                "title": "Research caching strategies",
+                "specialization": "research",
+                "description": "Evaluate Redis vs in-memory caching for API responses. Done when: approach selected.",
+                "subtasks": [{
+                    "title": "Implement response caching",
+                    "specialization": "coding",
+                    "description": "Add Redis caching to GET endpoints with 5-min TTL. Done when: cache hits return cached data.",
+                    "subtasks": [{
+                        "title": "Write caching tests",
+                        "specialization": "coding",
+                        "description": "Test cache hit/miss and TTL expiry. Done when: all tests pass."
+                    }]
                 }]
             }]
         )
 
+    WRONG — coding tasks at root level (will be rejected):
+        tasks=[
+            {"title": "Research X", "specialization": "research", "subtasks": [...]},
+            {"title": "Research Y", "specialization": "research", "subtasks": [...]},
+            {"title": "Implement X", "specialization": "coding", ...},  # REJECTED
+            {"title": "Implement Y", "specialization": "coding", ...}   # REJECTED
+        ]
+
     Args:
-        project_id: Project identifier. All tasks will be tagged with this.
-        tasks: Root task nodes. Each can have nested subtasks.
-        shared_metadata: Optional dict merged into every task's metadata at creation time.
-                         Use for plan-wide values like repo URL. Example: {"repo": "myorg/myrepo"}
+        project_id: Short slug identifying the project (e.g. "api-improvements").
+        tasks: List of root task nodes. ALL root tasks MUST have specialization "research".
+        shared_metadata: Dict merged into every task's metadata at creation.
+                         MUST include "repo" key with the target repository as "org/repo-name".
+                         Example: {"repo": "myorg/my-api"}
     """
+    # Validate: root tasks must be research-only
+    for i, task in enumerate(tasks):
+        spec = task.get("specialization", "")
+        if spec != "research":
+            return {
+                "error": f"Root task #{i+1} '{task.get('title', '')}' has specialization "
+                f"'{spec}' but root tasks MUST be 'research'. "
+                f"Move it into a research task's subtasks array and call create_project_plan again."
+            }
+
     body = {"project_id": project_id, "tasks": tasks}
     if shared_metadata:
         body["shared_metadata"] = shared_metadata
