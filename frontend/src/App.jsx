@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import TaskCount from "./components/TaskCount";
+import SpecBadge from "./components/SpecBadge";
+import { truncate, timeAgo } from "./utils/helpers";
 import {
   DndContext,
   MouseSensor,
@@ -15,7 +17,7 @@ const POLL_INTERVAL = 3000;
 
 const SPECIALIZATIONS = ["diego", "intake", "planning", "claude-code", "coding", "research"];
 
-const SPEC_COLORS = {
+export const SPEC_COLORS = {
   diego: "#71717a",
   intake: "#5599ff",
   coding: "#a78bfa",
@@ -38,34 +40,7 @@ async function api(path, options = {}) {
   return res.json();
 }
 
-function timeAgo(iso) {
-  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return "just now";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86400)}d ago`;
-}
 
-function truncate(text, maxLen = 120) {
-  if (!text || text.length <= maxLen) return text;
-  return text.slice(0, maxLen).trimEnd() + "…";
-}
-
-// ── Components ─────────────────────────────────────────────────────────
-
-function SpecBadge({ spec }) {
-  return (
-    <span
-      className="spec-badge"
-      style={{
-        color: SPEC_COLORS[spec] || SPEC_COLORS.diego,
-        borderColor: SPEC_COLORS[spec] || SPEC_COLORS.diego,
-      }}
-    >
-      {spec}
-    </span>
-  );
-}
 
 function BlockedIndicator({ task, allTasks }) {
   if (!task.is_blocked) return null;
@@ -276,70 +251,7 @@ function CreateTaskModal({ onClose, onCreate }) {
   );
 }
 
-function SearchResultsModal({ searchQuery, searchResults, allTasks, onClose, onOpenDetail }) {
-  // Escape key handler
-  useEffect(() => {
-    const handleKey = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  });
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal modal-search" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="modal-header">
-          <div className="modal-header-badges">
-            <span style={{ fontSize: "14px", fontWeight: "500" }}>
-              Search Results ({searchResults.length})
-            </span>
-          </div>
-          <button className="modal-close" onClick={onClose}>
-            ×
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="modal-body search-results">
-          {searchResults.length === 0 ? (
-            <div className="search-no-results">
-              No results for "{searchQuery}"
-            </div>
-          ) : (
-            <div className="search-results-list">
-              {searchResults.map((task) => (
-                <div
-                  key={task.id}
-                  className="search-result-item"
-                  onClick={() => {
-                    onOpenDetail(task.id);
-                    onClose();
-                  }}
-                >
-                  <div className="search-result-header">
-                    <div className="search-result-title">{task.title}</div>
-                    <SpecBadge spec={task.specialization} />
-                  </div>
-                  {task.description && (
-                    <div className="search-result-desc">
-                      {truncate(task.description, 80)}
-                    </div>
-                  )}
-                  <div className="search-result-meta">
-                    <span className="search-result-id">{task.id}</span>
-                    <span className="search-result-status">{task.status}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function ProjectEditor({ value, projects, onChange }) {
   const [isCustom, setIsCustom] = useState(false);
