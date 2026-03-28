@@ -120,6 +120,48 @@ class ProjectPlanTaskResponse(BaseModel):
     subtasks: list["ProjectPlanTaskResponse"] = Field(default_factory=list)
 
 
+class SubagentCreate(BaseModel):
+    """Create subagent request."""
+    name: str
+    specialization: str
+    description: str = ""
+    status: str = "active"
+    metadata: dict = Field(default_factory=dict)
+
+
+class SubagentUpdate(BaseModel):
+    """Update subagent request (partial)."""
+    name: Optional[str] = None
+    specialization: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    metadata: Optional[dict] = None
+
+
+class SubagentResponse(BaseModel):
+    """Subagent response."""
+    id: str
+    name: str
+    specialization: str
+    description: str
+    status: str
+    metadata: dict
+    created_at: str
+    updated_at: str
+
+
+class SubagentTaskResponse(BaseModel):
+    """Subagent task assignment response."""
+    id: str
+    task_id: str
+    subagent_id: str
+    status: str
+    assigned_at: str
+    completed_at: Optional[str] = None
+    result: Optional[str] = None
+    metadata: dict
+
+
 class ProjectPlanResponse(BaseModel):
     """Project plan creation response."""
     project_id: str

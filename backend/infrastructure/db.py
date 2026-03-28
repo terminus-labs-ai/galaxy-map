@@ -101,5 +101,40 @@ async def init_db():
     await db.execute("CREATE INDEX IF NOT EXISTS idx_task_history_task_id ON task_history(task_id)")
     await db.execute("CREATE INDEX IF NOT EXISTS idx_task_history_timestamp ON task_history(timestamp)")
 
+    # Subagent table
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS subagents (
+            id              TEXT PRIMARY KEY,
+            name            TEXT NOT NULL,
+            specialization  TEXT NOT NULL,
+            description     TEXT NOT NULL DEFAULT '',
+            status          TEXT NOT NULL DEFAULT 'active',
+            metadata        TEXT NOT NULL DEFAULT '{}',
+            created_at      TEXT NOT NULL,
+            updated_at      TEXT NOT NULL
+        )
+    """)
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_subagents_specialization ON subagents(specialization)")
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_subagents_status ON subagents(status)")
+
+    # Subagent task assignments table
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS subagent_tasks (
+            id              TEXT PRIMARY KEY,
+            task_id         TEXT NOT NULL,
+            subagent_id     TEXT NOT NULL,
+            status          TEXT NOT NULL DEFAULT 'pending',
+            assigned_at     TEXT NOT NULL,
+            completed_at    TEXT DEFAULT NULL,
+            result          TEXT DEFAULT NULL,
+            metadata        TEXT NOT NULL DEFAULT '{}',
+            FOREIGN KEY (task_id) REFERENCES tasks(id),
+            FOREIGN KEY (subagent_id) REFERENCES subagents(id)
+        )
+    """)
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_subagent_tasks_task_id ON subagent_tasks(task_id)")
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_subagent_tasks_subagent_id ON subagent_tasks(subagent_id)")
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_subagent_tasks_status ON subagent_tasks(status)")
+
     await db.commit()
     await db.close()
