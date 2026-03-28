@@ -132,8 +132,8 @@ class TaskRepository:
     """Persist a new task."""
     try:
       await self.db.execute(
-        """INSERT INTO tasks (id, title, description, status, specialization, priority, blocked_by, metadata, created_at, updated_at, project_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        """INSERT INTO tasks (id, title, description, status, specialization, priority, blocked_by, metadata, created_at, updated_at, project_id, parent_task_id, subagent_type, subagent_status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
           task.id,
           task.title,
@@ -146,6 +146,9 @@ class TaskRepository:
           task.created_at,
           task.updated_at,
           task.project_id,
+          task.parent_task_id,
+          task.subagent_type,
+          task.subagent_status,
         ),
       )
     except Exception as e:
@@ -159,7 +162,7 @@ class TaskRepository:
     await self.db.execute(
       """UPDATE tasks
                SET title = ?, description = ?, status = ?, specialization = ?,
-                   priority = ?, blocked_by = ?, metadata = ?, updated_at = ?, project_id = ?
+                   priority = ?, blocked_by = ?, metadata = ?, updated_at = ?, project_id = ?, parent_task_id = ?, subagent_type = ?, subagent_status = ?
                WHERE id = ?""",
       (
         task.title,
@@ -171,6 +174,9 @@ class TaskRepository:
         json.dumps(task.metadata),
         task.updated_at,
         task.project_id,
+        task.parent_task_id,
+        task.subagent_type,
+        task.subagent_status,
         task.id,
       ),
     )

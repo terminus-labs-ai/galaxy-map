@@ -55,7 +55,10 @@ async def init_db():
             blocked_by      TEXT NOT NULL DEFAULT '[]',
             metadata        TEXT NOT NULL DEFAULT '{}',
             created_at      TEXT NOT NULL,
-            updated_at      TEXT NOT NULL
+            updated_at      TEXT NOT NULL,
+            parent_task_id  TEXT DEFAULT NULL,
+            subagent_type   TEXT DEFAULT NULL,
+            subagent_status TEXT DEFAULT NULL
         )
     """)
 
@@ -68,6 +71,14 @@ async def init_db():
     except Exception:
         pass  # Column already exists
     await db.execute("CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id)")
+
+    # Migration: add subagent columns (nullable)
+    try:
+        await db.execute("ALTER TABLE tasks ADD COLUMN parent_task_id TEXT DEFAULT NULL")
+        await db.execute("ALTER TABLE tasks ADD COLUMN subagent_type TEXT DEFAULT NULL")
+        await db.execute("ALTER TABLE tasks ADD COLUMN subagent_status TEXT DEFAULT NULL")
+    except Exception:
+        pass  # Columns already exist
 
     await db.execute("""
         CREATE TABLE IF NOT EXISTS messages (
