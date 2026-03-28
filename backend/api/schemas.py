@@ -126,3 +126,15 @@ class ProjectPlanResponse(BaseModel):
     shared_metadata: dict = Field(default_factory=dict)
     tasks_created: int
     task_tree: list[ProjectPlanTaskResponse]
+
+
+class SubagentTaskCreate(BaseModel):
+    """Create subagent task request."""
+    parent_task_id: str
+    title: str
+    description: str = ""
+    status: str = "backlog"
+    specialization: str = "general"
+    priority: int = 0
+    metadata: dict = Field(default_factory=dict)
+    project_id: Optional[str] = None

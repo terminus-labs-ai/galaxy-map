@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Query
 from infrastructure import get_db
 from domain import Task, TaskService
-from api.schemas import TaskCreate, TaskUpdate, TaskResponse, TaskHistoryResponse
+from api.schemas import TaskCreate, TaskUpdate, TaskResponse, TaskHistoryResponse, SubagentTaskCreate
 from core import Config
 
 
@@ -175,3 +175,29 @@ async def get_task_history(
 
   await db.close()
   return history
+
+
+@router.post("/{task_id}/subagent", response_model=TaskResponse, status_code=201)
+async def create_subagent_task(task_id: str, subagent_task: SubagentTaskCreate):
+  """Create a subagent task that is linked to a parent task."""
+  db = await get_db()
+  service = TaskService(db)
+
+  # Validate that the parent task exists
+  parent_task = await service.get_task(subagent_task.parent_task_id)
+  
+  # Create the subagent task with proper dependencies
+  created = await service.create_task(
+      title=subagent_task.title,
+      description=subagent_task.description,
+      status=subagent_task.status,
+      specialization=subagent_task.specialization,
+      priority=subagent_task.priority,
+      blocked_by=[subagent_task.parent_task_id],  # Link to parent task
+      metadata=subagent_task.metadata,
+      project_id=subagent_task.project_id,
+  )
+
+  result = created.to_dict(is_blocked=False)
+  await db.close()
+  return result
