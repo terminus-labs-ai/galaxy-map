@@ -78,6 +78,7 @@ async def create_task(task: TaskCreate):
     metadata=task.metadata,
     task_id=task.id,
     project_id=task.project_id,
+    parent_task_id=task.parent_task_id,
   )
 
   result = created.to_dict(is_blocked=False)
@@ -115,6 +116,7 @@ async def update_task(task_id: str, updates: TaskUpdate):
     blocked_by=updates.blocked_by,
     metadata=updates.metadata,
     project_id=updates.project_id if "project_id" in updates.model_fields_set else "___UNSET___",
+    parent_task_id=updates.parent_task_id if "parent_task_id" in updates.model_fields_set else "___UNSET___",
   )
 
   all_tasks = await service.repo.get_all()
@@ -175,3 +177,20 @@ async def get_task_history(
 
   await db.close()
   return history
+
+
+@router.get("/{task_id}/subtasks", response_model=list[TaskResponse])
+async def get_subtasks(task_id: str):
+  """Get all subtasks for a given parent task ID."""
+  db = await get_db()
+  service = TaskService(db)
+
+  # Get all tasks that have this task_id as their parent_task_id
+  tasks = await service.repo.list_by_parent_task(task_id)
+  
+  # Compute is_blocked for all tasks
+  all_tasks = await service.repo.get_all()
+  result = [t.to_dict(is_blocked=t.is_blocked(all_tasks)) for t in tasks]
+
+  await db.close()
+  return result

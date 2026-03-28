@@ -19,6 +19,7 @@ class Task:
     blocked_by: list[str] = field(default_factory=list)
     metadata: dict = field(default_factory=dict)
     project_id: str | None = None
+    parent_task_id: str | None = None
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
@@ -37,6 +38,7 @@ class Task:
             created_at=row["created_at"],
             updated_at=row["updated_at"],
             project_id=row["project_id"] if "project_id" in row.keys() else None,
+            parent_task_id=row["parent_task_id"] if "parent_task_id" in row.keys() else None,
         )
         return task
 
@@ -70,6 +72,7 @@ class Task:
             "is_blocked": is_blocked if is_blocked is not None else self.is_blocked(),
             "metadata": self.metadata,
             "project_id": self.project_id,
+            "parent_task_id": self.parent_task_id,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }

@@ -33,6 +33,7 @@ class TaskService:
         metadata: dict | None = None,
         task_id: str | None = None,
         project_id: str | None = None,
+        parent_task_id: str | None = None,
     ) -> Task:
         """Create a new task with validation and duplicate detection."""
         self.validator.validate_status(status)
@@ -61,6 +62,7 @@ class TaskService:
             blocked_by=blocked_by,
             metadata=metadata,
             project_id=project_id,
+            parent_task_id=parent_task_id,
         )
 
         return await self.repo.create(task)
@@ -105,6 +107,7 @@ class TaskService:
         blocked_by: list[str] | None = None,
         metadata: dict | None = None,
         project_id: str | None = "___UNSET___",
+        parent_task_id: str | None = "___UNSET___",
         changed_by: str = "system",
     ) -> Task:
         """Update a task (partial update)."""
@@ -142,6 +145,9 @@ class TaskService:
         if project_id != "___UNSET___" and project_id != task.project_id:
             changes["project_id"] = {"old": task.project_id, "new": project_id}
             task.project_id = project_id
+        if parent_task_id != "___UNSET___" and parent_task_id != task.parent_task_id:
+            changes["parent_task_id"] = {"old": task.parent_task_id, "new": parent_task_id}
+            task.parent_task_id = parent_task_id
 
         result = await self.repo.update(task)
         

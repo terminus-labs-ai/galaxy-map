@@ -69,6 +69,13 @@ async def init_db():
         pass  # Column already exists
     await db.execute("CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id)")
 
+    # Migration: add parent_task_id column (nullable, no FK)
+    try:
+        await db.execute("ALTER TABLE tasks ADD COLUMN parent_task_id TEXT DEFAULT NULL")
+    except Exception:
+        pass  # Column already exists
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_tasks_parent_task_id ON tasks(parent_task_id)")
+
     await db.execute("""
         CREATE TABLE IF NOT EXISTS messages (
             id              TEXT PRIMARY KEY,

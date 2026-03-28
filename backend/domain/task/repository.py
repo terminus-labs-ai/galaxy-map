@@ -67,6 +67,15 @@ class TaskRepository:
     rows = await cursor.fetchall()
     return [Task.from_row(r) for r in rows]
 
+  async def list_by_parent_task(self, parent_task_id: str) -> list[Task]:
+    """Fetch tasks by parent_task_id."""
+    cursor = await self.db.execute(
+      "SELECT * FROM tasks WHERE parent_task_id = ? ORDER BY priority DESC, created_at ASC",
+      (parent_task_id,),
+    )
+    rows = await cursor.fetchall()
+    return [Task.from_row(r) for r in rows]
+
   async def get_distinct_projects(self) -> list[dict]:
     """Get distinct project_ids with task counts."""
     cursor = await self.db.execute(
@@ -132,8 +141,8 @@ class TaskRepository:
     """Persist a new task."""
     try:
       await self.db.execute(
-        """INSERT INTO tasks (id, title, description, status, specialization, priority, blocked_by, metadata, created_at, updated_at, project_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        """INSERT INTO tasks (id, title, description, status, specialization, priority, blocked_by, metadata, created_at, updated_at, project_id, parent_task_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
           task.id,
           task.title,
@@ -146,6 +155,7 @@ class TaskRepository:
           task.created_at,
           task.updated_at,
           task.project_id,
+          task.parent_task_id,
         ),
       )
     except Exception as e:
@@ -159,7 +169,7 @@ class TaskRepository:
     await self.db.execute(
       """UPDATE tasks
                SET title = ?, description = ?, status = ?, specialization = ?,
-                   priority = ?, blocked_by = ?, metadata = ?, updated_at = ?, project_id = ?
+                   priority = ?, blocked_by = ?, metadata = ?, updated_at = ?, project_id = ?, parent_task_id = ?
                WHERE id = ?""",
       (
         task.title,
@@ -171,6 +181,7 @@ class TaskRepository:
         json.dumps(task.metadata),
         task.updated_at,
         task.project_id,
+        task.parent_task_id,
         task.id,
       ),
     )
