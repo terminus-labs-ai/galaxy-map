@@ -933,7 +933,7 @@ export default function App() {
       {error && <div className="error-banner">API error: {error}</div>}
 
       <TaskCount tasks={filteredTasks} />
-      <div className="board">
+      <div className="board" style={{ gridTemplateColumns: `repeat(${columns.length || 1}, 1fr)` }}>
         {columns.map((col) => (
           <Column
             key={col.key}

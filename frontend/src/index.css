@@ -83,7 +83,7 @@ body {
 
 .board {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  /* grid-template-columns set dynamically via inline style based on status count */
   gap: 1px;
   flex: 1;
   overflow: hidden;
@@ -890,7 +890,7 @@ body {
 
 @media (max-width: 900px) {
   .board {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
     overflow-y: auto;
   }
 
