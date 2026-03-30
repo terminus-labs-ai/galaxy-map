@@ -124,12 +124,16 @@ async def update_task(task_id: str, updates: TaskUpdate):
 
 
 @router.post("/{task_id}/claim", response_model=TaskResponse)
-async def claim_task(task_id: str, claimed_by: str = Query(...)):
-  """Atomically claim a queued, unblocked task."""
+async def claim_task(
+  task_id: str,
+  claimed_by: str = Query(...),
+  target_status: str = Query("in_progress"),
+):
+  """Atomically claim an unblocked task, transitioning to target_status."""
   db = await get_db()
   service = TaskService(db)
 
-  claimed = await service.claim_task(task_id, claimed_by)
+  claimed = await service.claim_task(task_id, claimed_by, target_status=target_status)
   all_tasks = await service.repo.get_all()
 
   result = claimed.to_dict(is_blocked=claimed.is_blocked(all_tasks))

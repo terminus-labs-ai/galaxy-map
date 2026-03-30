@@ -5,7 +5,7 @@ import json
 from datetime import datetime, timezone
 import aiosqlite
 from fastapi import HTTPException
-from core import Config, TaskNotFound, DuplicateTask, TaskNotQueued, TaskBlocked
+from core import Config, TaskNotFound, DuplicateTask, TaskBlocked, InvalidTransition
 from .model import Task
 from .repository import TaskRepository
 from .validator import TaskValidator
@@ -122,6 +122,7 @@ class TaskService:
         if status is not None:
             self.validator.validate_status(status)
             if status != task.status:
+                self._validate_transition(task.status, status)
                 changes["status"] = {"old": task.status, "new": status}
             task.status = status
         if specialization is not None and specialization != task.specialization:
@@ -165,12 +166,14 @@ class TaskService:
         
         return result
 
-    async def claim_task(self, task_id: str, claimed_by: str) -> Task:
-        """Atomically claim a queued, unblocked task."""
+    async def claim_task(
+        self, task_id: str, claimed_by: str, target_status: str = "in_progress",
+    ) -> Task:
+        """Atomically claim an unblocked task, transitioning to target_status."""
         task = await self.get_task(task_id)
 
-        if task.status != "queued":
-            raise TaskNotQueued(task.status)
+        # Validate the transition from current status to target_status
+        self._validate_transition(task.status, target_status)
 
         # Check if blocked
         all_tasks = await self.repo.get_all()
@@ -178,18 +181,18 @@ class TaskService:
             raise TaskBlocked()
 
         old_status = task.status
-        task.status = "in_progress"
+        task.status = target_status
 
         task.metadata["claimed_by"] = claimed_by
 
         result = await self.repo.update(task)
-        
+
         # Create history entries
         await self._create_history_entry(
             task_id=task_id,
             event_type="status_change",
             old_value=old_status,
-            new_value="in_progress",
+            new_value=target_status,
             changed_by=claimed_by,
             details={},
         )
@@ -201,7 +204,7 @@ class TaskService:
             changed_by=claimed_by,
             details={"field": "claimed_by"},
         )
-        
+
         return result
 
     async def merge_metadata(self, task_id: str, patch: dict, changed_by: str = "system") -> Task:
@@ -265,6 +268,21 @@ class TaskService:
         """Get task history entries."""
         history = await self.history_repo.get_by_task_id(task_id, limit, offset)
         return [h.to_dict() for h in history]
+
+    @staticmethod
+    def _validate_transition(current_status: str, new_status: str) -> None:
+        """Raise InvalidTransition if the transition is not allowed by statuses config."""
+        statuses = Config.statuses()
+        status_map = {s["key"]: s for s in statuses}
+
+        status_def = status_map.get(current_status)
+        if status_def is None:
+            # Unknown current status — allow (don't block on misconfigured data)
+            return
+
+        allowed = status_def.get("allowed_transitions", [])
+        if new_status not in allowed:
+            raise InvalidTransition(current_status, new_status)
 
     async def _check_duplicate_title(self, title: str):
         """Check for duplicate task titles based on similarity threshold."""

@@ -60,6 +60,17 @@ class MessageNotFound(HTTPException):
         super().__init__(status_code=404, detail=f"Message '{message_id}' not found")
 
 
+class InvalidTransition(HTTPException):
+    def __init__(self, current_status: str, new_status: str):
+        super().__init__(
+            status_code=409,
+            detail=(
+                f"Invalid status transition: '{current_status}' -> '{new_status}'. "
+                f"Check allowed_transitions for '{current_status}'."
+            ),
+        )
+
+
 class InvalidProjectPlan(HTTPException):
     def __init__(self, errors: list[str]):
         super().__init__(
