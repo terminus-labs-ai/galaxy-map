@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build output
+frontend/dist/
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Lock files
+package-lock.json
+uv.lock

@@ -1,0 +1,25 @@
+# Galaxy Map — Task Tracker for AI Agents
+
+## Architecture
+- Backend: Python FastAPI + async SQLite (backend/main.py), database: board.db
+- Frontend: React 18 + Vite (frontend/src/App.jsx), polls backend every 3s
+- MCP Server: FastMCP (mcp-server/), exposes task CRUD as MCP tools
+- Config: YAML-based status configuration (backend/config/statuses.yaml)
+- No auth, no websockets
+
+## Running
+- Backend: cd backend && pip install -r requirements.txt && uvicorn main:app --reload --host 0.0.0.0 --port 8000
+- Frontend: cd frontend && npm install && npm run dev
+- Docker: docker compose up (3 containers: backend, frontend, mcp-server)
+
+## Key API Endpoints
+- GET/POST /api/tasks — List/create tasks
+- PATCH /api/tasks/{id} — Partial update
+- POST /api/tasks/{id}/claim — Atomic claim (409 if already claimed)
+- PATCH /api/tasks/{id}/metadata — Merge keys into metadata
+- GET /api/statuses — Status definitions with allowed transitions
+
+## Conventions
+- Status transitions are validated server-side
+- Metadata is merged (not replaced) via the metadata endpoint
+- Frontend dynamically sizes grid to number of status columns

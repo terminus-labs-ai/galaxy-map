@@ -8,6 +8,7 @@ Configure via environment variable:
     GALAXY_MAP_URL  — base URL of the Galaxy Map API (default: http://localhost:8000)
 """
 
+import json
 import logging
 import os
 import sys
@@ -518,6 +519,12 @@ async def create_project_plan(
 
     body = {"project_id": project_id, "tasks": tasks}
     if shared_metadata:
+        # Coerce string to dict if LLM passed JSON string instead of dict
+        if isinstance(shared_metadata, str):
+            try:
+                shared_metadata = json.loads(shared_metadata)
+            except (json.JSONDecodeError, TypeError):
+                return {"error": f"shared_metadata must be a dict, got string: {shared_metadata[:200]}"}
         body["shared_metadata"] = shared_metadata
     url = _api("/projects/plan")
     logger.debug("create_project_plan -> POST %s body=%s", url, body)
