@@ -20,7 +20,7 @@ statuses:
     description: Task is actively being worked on by an agent.
     order: 2
     color: "#a78bfa"
-    allowed_transitions: [needs_review, needs_human, error, backlog]
+    allowed_transitions: [needs_review, needs_human, error, backlog, done]
     terminal: false
 
   - key: needs_review

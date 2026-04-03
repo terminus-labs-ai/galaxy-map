@@ -337,6 +337,7 @@ class TaskService:
         project_id: str,
         tasks: list[dict],
         shared_metadata: dict | None = None,
+        task_id: str | None = None,
     ) -> dict:
         """Create an entire project plan from a nested task tree.
 
@@ -391,6 +392,29 @@ class TaskService:
 
         if errors:
             raise InvalidProjectPlan(errors)
+
+        # --- Idempotency: reject if project already has plan subtasks ---
+        # Allow 1 existing task (the seed/parent task that EDI is planning for).
+        # If there are 2+, a plan was already created.
+        existing = await self.repo.list_by_project(project_id)
+        if len(existing) > 1:
+            raise InvalidProjectPlan(
+                [f"Project '{project_id}' already has {len(existing)} tasks (plan already created). "
+                 f"create_project_plan can only be called once per project_id. "
+                 f"The plan was already created successfully — do not call this tool again."]
+            )
+
+        # --- Set project_id on parent task if task_id provided ---
+        if task_id:
+            try:
+                parent_task = await self.repo.get_by_id(task_id)
+                parent_task.project_id = project_id
+                await self.repo.update(parent_task)
+                await self.db.commit()
+            except TaskNotFound:
+                raise InvalidProjectPlan(
+                    [f"task_id '{task_id}' not found. Pass the task ID from your assignment."]
+                )
 
         # --- Creation pass (atomic) ---
         created_ids = []

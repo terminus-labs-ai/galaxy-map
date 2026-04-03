@@ -610,6 +610,23 @@ function TaskDetailModal({ taskId, allTasks, projects, onClose, onUpdate, onDele
                 {columns[colIdx + 1].label} →
               </button>
             )}
+
+            {/* Show all allowed transitions */}
+            {columns.find(c => c.key === task.status)?.allowed_transitions?.map(allowedStatus => {
+              const targetCol = columns.find(c => c.key === allowedStatus);
+              if (!targetCol) return null;
+              // Don't show adjacent buttons again
+              if (targetCol.key === columns[colIdx - 1]?.key || targetCol.key === columns[colIdx + 1]?.key) return null;
+              return (
+                <button
+                  key={allowedStatus}
+                  className="btn btn-sm"
+                  onClick={() => handleMove(allowedStatus)}
+                >
+                  → {targetCol.label}
+                </button>
+              );
+            })}
           </div>
           <div className="modal-footer-right">
             <button

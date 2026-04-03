@@ -105,6 +105,7 @@ class TaskNode(BaseModel):
 class ProjectPlanCreate(BaseModel):
     """Create project plan request."""
     project_id: str
+    task_id: str | None = None
     shared_metadata: dict = Field(default_factory=dict)
     tasks: list[TaskNode]
 

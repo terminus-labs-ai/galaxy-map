@@ -430,6 +430,7 @@ async def create_project_plan(
     project_id: str,
     tasks: list[dict],
     shared_metadata: Optional[dict] = None,
+    task_id: Optional[str] = None,
 ) -> dict:
     """Create an entire project plan as a tree of tasks.
 
@@ -506,6 +507,7 @@ async def create_project_plan(
         shared_metadata: Dict merged into every task's metadata at creation.
                          MUST include "repo" key with the target repository as "org/repo-name".
                          Example: {"repo": "myorg/my-api"}
+        task_id: Your task ID (from "Task ID: xxx" in the prompt). Sets project_id on your task.
     """
     # Validate: root tasks must be research-only
     for i, task in enumerate(tasks):
@@ -518,6 +520,8 @@ async def create_project_plan(
             }
 
     body = {"project_id": project_id, "tasks": tasks}
+    if task_id:
+        body["task_id"] = task_id
     if shared_metadata:
         # Coerce string to dict if LLM passed JSON string instead of dict
         if isinstance(shared_metadata, str):

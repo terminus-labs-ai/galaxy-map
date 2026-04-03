@@ -24,6 +24,7 @@ async def create_project_plan(plan: ProjectPlanCreate):
         project_id=plan.project_id,
         tasks=[t.model_dump() for t in plan.tasks],
         shared_metadata=plan.shared_metadata,
+        task_id=plan.task_id,
     )
 
     await db.close()
